@@ -6,10 +6,10 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.util.HashSet;
 
-public class dowloader {
+public class downloader {
     private HashSet<String> urlLinks;
 
-    public dowloader() {
+    public downloader() {
         urlLinks = new HashSet<String>();
     }
 
@@ -33,7 +33,7 @@ public class dowloader {
     }
 
     public static void main(String[] args) {
-        dowloader obj = new dowloader();
+        downloader obj = new downloader();
         obj.getPageLinks("https://www.javatpoint.com/digital-electronics");
     }
 }
