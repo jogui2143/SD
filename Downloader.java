@@ -7,9 +7,9 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
-
+import java.net.URI;
 public class Downloader {
-   
+
     private HashSet<String> visitedLinks;
 
    
@@ -89,7 +89,8 @@ public class Downloader {
     // Method to validate whether a given string is a well-formed URL with HTTP or HTTPS protocol.
     private boolean isValidURL(String urlString) {
         try {
-            URL url = new URL(urlString);
+            URI uri = new URI(urlString);
+            URL url = uri.toURL();
             return url.getProtocol().equals("http") || url.getProtocol().equals("https");
         } catch (Exception e) {
             // If the URL is malformed, return false.
