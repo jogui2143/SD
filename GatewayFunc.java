@@ -25,7 +25,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
       return barrel.searchUrls(term);
     } catch (Exception e){
       System.err.println("Exception on searchinfo(não conectou a merda do barrel)" + e.toString());
-      e.printStackTrace();
+      throw new RemoteException("Exception on searchinfo(não conectou a merda do barrel)" + e.toString());
     }
   }
 
