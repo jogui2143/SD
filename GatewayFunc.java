@@ -1,37 +1,44 @@
+// Importing necessary Java RMI and concurrency classes.
 import java.rmi.RemoteException;
 import java.rmi.registry.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface{
-  private ConcurrentLinkedQueue<String> urlQueue = new ConcurrentLinkedQueue<>();
-  //fila de Urls I guess :)
+// GatewayFunc class declaration, extending UnicastRemoteObject to enable RMI, and implementing GatewayInterface.
+public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface {
+    // A concurrent queue to store URLs. ConcurrentLinkedQueue ensures thread-safe operations.
+    private ConcurrentLinkedQueue<String> urlQueue = new ConcurrentLinkedQueue<>();
+    // Comment: "Queue of URLs, I guess :)" (presumably a note from the developer).
 
-  public GatewayFunc() throws RemoteException{
-    super();
-  }
-
-  @Override
-  public String getNewUrl() throws RemoteException{
-    return urlQueue.poll();
-  }
-
-  @Override
-  public HashSet<String> searchinfo(String term) throws RemoteException{
-    try{
-      Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
-      BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
-      return barrel.searchUrls(term);
-    } catch (Exception e){
-      System.err.println("Exception on searchinfo(não conectou a merda do barrel)" + e.toString());
-      throw new RemoteException("Exception on searchinfo(não conectou a merda do barrel)" + e.toString());
+    // Constructor for GatewayFunc.
+    public GatewayFunc() throws RemoteException {
+        super(); // Calling the constructor of UnicastRemoteObject.
     }
-  }
 
-  public void queueUpUrl(String url) throws RemoteException{
-    urlQueue.add(url);
-  }
+    // Overriding the getNewUrl method from GatewayInterface.
+    @Override
+    public String getNewUrl() throws RemoteException {
+        // Polls and returns the head of the URL queue, or null if the queue is empty.
+        return urlQueue.poll();
+    }
 
+    // Overriding the searchinfo method from GatewayInterface.
+    @Override
+    public HashSet<PageContent> searchinfo(String term) throws RemoteException {
+        try {
+            Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
+            BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+            return barrel.searchUrls(term);
+        } catch (Exception e) {
+            System.err.println("Exception on searchinfo(didn't connect to the Barrel)" + e.toString());
+            throw new RemoteException("Exception on searchinfo(didn't connect to the Barrel)" + e.toString());
+        }
+    }
 
+    // Method to queue up URLs.
+    public void queueUpUrl(String url) throws RemoteException {
+        // Adds a new URL to the concurrent queue.
+        urlQueue.add(url);
+    }
 }
