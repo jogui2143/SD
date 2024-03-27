@@ -1,6 +1,10 @@
+
 // Import statements for Java RMI and utilities.
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Scanner;
 import java.rmi.registry.LocateRegistry;
 
@@ -31,7 +35,7 @@ public class Client {
 
                 // Reading the user's option.
                 option = scanner.nextInt();
-                scanner.nextLine();  // Clearing the scanner buffer.
+                scanner.nextLine(); // Clearing the scanner buffer.
 
                 // Switch case to handle different user options.
                 switch (option) {
@@ -47,18 +51,50 @@ public class Client {
                     case 2:
                         System.out.print("Search term: ");
                         String term = scanner.nextLine();
-                    
-                        HashSet<PageContent> results = gateway.searchinfo(term);
-                    
+                        int pageNumber = 1;
+
+                        HashSet<PageContent> resultSet = gateway.searchinfo(term);
+
+                        // Convert HashSet to List and sort it by the number of links.
+                        List<PageContent> results = new ArrayList<>(resultSet);
+                        results.sort((p1, p2) -> Integer.compare(p2.getnumberOfRerences(), p1.getnumberOfRerences()));
+                        // queres avancar
                         if (results != null && !results.isEmpty()) {
                             System.out.println("Results found for " + term + ":");
-                            for (PageContent content : results) {
-                                System.out.println("Title: " + content.getTitle());
-                                System.out.println("URL: " + content.getUrl());
-                                System.out.println("Text: " + content.truncateText(content.getText()));
-                                System.out.println(); // For better readability
+                            boolean forward = true;
+                        
+                            while (forward) {
+                                int count = 1;
+                                System.out.println("----------------Page number---------------" + pageNumber);
+                                
+                                Iterator<PageContent> iterator = results.iterator();
+                                while (iterator.hasNext() && count <= 10) {
+                                    PageContent content = iterator.next();
+                                    System.out.println("Title: " + content.getTitle());
+                                    System.out.println("URL: " + content.getUrl());
+                                    System.out.println("Text: " + content.truncateText(content.getText()));
+                                    System.out.println("Links: " + content.getnumberOfRerences());
+                                    System.out.println(); // For better readability
+                                    iterator.remove();
+                                    count++;
+                                }
+                        
+                                System.out.println("----------------Page number---------------" + pageNumber);
+                                pageNumber++;
+                                System.out.println("Move forward press 1");
+                                
+                                // Here you should handle possible InputMismatchException in case of wrong input
+                                int fds = scanner.nextInt();
+                                if (fds == 1) {
+                                    forward = true;
+                                } else {
+                                    forward = false;
+                                }
                             }
-                        } else {
+                        }
+                        
+                            // escolha frente ou sai se sair break
+                         else {
                             System.out.println("Could not find results for " + term);
                         }
                         break;

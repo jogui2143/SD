@@ -7,17 +7,14 @@ public class PageContent implements Serializable {
   private String title;
   private String text;
   private String url;
+  private int numberOfReferences; // New field for number of references
 
-
-
-
-  
-
-
-  public PageContent(String title, String text, String url){
-    this.title = title;
-    this.text = text;
-    this.url = url;
+  // Constructor
+  public PageContent(String title, String text, String url, int numberOfReferences) {
+      this.title = title;
+      this.text = text;
+      this.url = url;
+      this.numberOfReferences = numberOfReferences;
   }
 
   public String getTitle(){
@@ -30,6 +27,10 @@ public class PageContent implements Serializable {
 
   public String getUrl(){
     return url;
+  }
+
+  public int getnumberOfRerences(){
+    return numberOfReferences;
   }
 
   public String truncateText(String text) {

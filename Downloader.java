@@ -10,6 +10,8 @@ import java.io.ObjectOutputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -22,6 +24,8 @@ public class Downloader {
     // Constants for multicast networking.
     private static final String MULTICAST_ADDRESS = "225.1.2.3";
     private static final int MT_PORT = 7002;
+    // A Map to keep track of the number of times each URL is referenced.
+    private static final Map<String, Integer> urlReferenceCount = new HashMap<>();
 
     // GatewayInterface variable for RMI communication.
     private static GatewayInterface gateway;
@@ -57,23 +61,31 @@ public class Downloader {
     // Method to start the web crawling process.
     private static void startCrawling(String url){
         try {
+
+          
             // Connect to the URL and parse the HTML document.
             Document doc = Jsoup.connect(url).get();
-
+            
             System.out.println("Processing URL: " + url);
             // Selecting all hyperlink elements in the document.
             Elements links = doc.select("a[href]");
-            // Loop through all found hyperlinks.
             for(Element link : links){
                 String newUrl = link.attr("abs:href");
-                // Queue up the found URLs for future crawling.
+
+                // Increment the count for each URL found.
+                urlReferenceCount.put(newUrl, urlReferenceCount.getOrDefault(newUrl, 0) + 1);
+                
                 gateway.queueUpUrl(newUrl);
             }
             // Extract the title and text content of the web page.
             String title = doc.title();
             String text = doc.body().text();
-            // Creating a PageContent object with the extracted information.
-            PageContent info = new PageContent(title, text, url);
+            int numberOfLinks = urlReferenceCount.getOrDefault(url, 0);
+
+            // Creating a PageContent object with the extracted information and number of references.
+            PageContent info = new PageContent(doc.title(), doc.body().text(), url, numberOfLinks);
+
+            sendInfo(info);
 
             // Send the PageContent info using multicast.
             sendInfo(info);
