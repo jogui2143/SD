@@ -38,4 +38,15 @@ public class PageContent implements Serializable {
         return text.substring(0, MAX_TEXT_LENGTH) + "...";
     }
     return text;}
+
+
+    @Override
+    public String toString() {
+        return "PageContent{" +
+               "title='" + title + '\'' +
+               ", url='" + url + '\'' +
+               ", text='" + truncateText(text) + '\'' +
+               ", numberOfReferences=" + numberOfReferences +
+               '}';
+    }
 }

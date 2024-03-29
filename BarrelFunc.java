@@ -1,15 +1,12 @@
-import java.io.IOException;
 import java.rmi.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
-    // Updated to store PageContent objects instead of just URLs.
-    private HashMap<String, HashSet<PageContent>> index;
+    private ConcurrentHashMap<String, HashSet<PageContent>> index;
 
-    public BarrelFunc(HashMap<String, HashSet<PageContent>> index) throws RemoteException {
+    public BarrelFunc(ConcurrentHashMap<String, HashSet<PageContent>> index) throws RemoteException {
         super();
         this.index = index;
     }
@@ -17,25 +14,22 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
     @Override
     public HashSet<PageContent> searchUrls(String term) throws RemoteException {
         String[] words = term.toLowerCase().split("\\s+");
-        HashSet<PageContent> pagesResult = new HashSet<>();
+        HashSet<PageContent> results = new HashSet<>();
 
-        // Check if there are words to search for.
-        if (words.length > 0 && index.containsKey(words[0])) {
-            pagesResult.addAll(index.get(words[0]));
-        } else {
-            return new HashSet<>();
-        }
-
-        // Intersect the sets of PageContent objects for each word.
-        for (int i = 1; i < words.length; i++) {
-            if (index.containsKey(words[i])) {
-                pagesResult.retainAll(index.get(words[i]));
+        for (String word : words) {
+            if (index.containsKey(word)) {
+                if (results.isEmpty()) {
+                    // For the first word, add all its PageContent objects to the results
+                    results.addAll(index.get(word));
+                } else {
+                    // For subsequent words, retain only those PageContent objects that are also in the new set
+                    results.retainAll(index.get(word));
+                }
             } else {
-                // If any word is not found, return empty set.
+                // If any word is not found in the index, the intersection will be empty
                 return new HashSet<>();
             }
         }
-
-        return pagesResult;  // Return the set of PageContent objects.
+        return results;
     }
 }

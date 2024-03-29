@@ -29,6 +29,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
         try {
             Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
             BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+            System.out.println("no search info ");
             return barrel.searchUrls(term);
         } catch (Exception e) {
             System.err.println("Exception on searchinfo(didn't connect to the Barrel)" + e.toString());

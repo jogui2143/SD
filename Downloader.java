@@ -68,8 +68,8 @@ public class Downloader {
             
             System.out.println("Processing URL: " + url);
             // Selecting all hyperlink elements in the document.
-            Elements links = doc.select("a[href]");
-            for(Element link : links){
+             Elements links = doc.select("a[href]");
+             for(Element link : links){
                 String newUrl = link.attr("abs:href");
 
                 // Increment the count for each URL found.
@@ -78,8 +78,7 @@ public class Downloader {
                 gateway.queueUpUrl(newUrl);
             }
             // Extract the title and text content of the web page.
-            String title = doc.title();
-            String text = doc.body().text();
+           
             int numberOfLinks = urlReferenceCount.getOrDefault(url, 0);
 
             // Creating a PageContent object with the extracted information and number of references.
@@ -87,8 +86,7 @@ public class Downloader {
 
             sendInfo(info);
 
-            // Send the PageContent info using multicast.
-            sendInfo(info);
+           
 
         } catch (IOException e) {
             // Handling IOException during web crawling.
@@ -107,6 +105,7 @@ public class Downloader {
 
     // Method to send the PageContent info using multicast.
     private static void sendInfo(PageContent info) throws IOException {
+        System.out.println("sending info ");
         InetAddress gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
         NetworkInterface netInterface = NetworkInterface.getNetworkInterfaces().nextElement();
         msgId++; // Increment message ID for each new message.

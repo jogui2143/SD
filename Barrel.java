@@ -14,7 +14,7 @@ import java.rmi.registry.LocateRegistry;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
 
 public class Barrel {
@@ -27,7 +27,8 @@ public class Barrel {
     private NetworkInterface netInterface;
 
     // HashMap to store PageContent objects indexed by words.
-    private static final HashMap<String, HashSet<PageContent>> pages = new HashMap<>();
+   // ConcurrentHashMap to store PageContent objects indexed by words.
+    private static final ConcurrentHashMap<String, HashSet<PageContent>> pages = new ConcurrentHashMap<>();
 
     public Barrel() throws IOException {
         gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
@@ -89,10 +90,14 @@ public class Barrel {
     }
 
     private void storeMsg(PageContent info) {
-        StringTokenizer st = new StringTokenizer(info.getText(), "\t\n\r\f,.:;?![]'\"");
-        while (st.hasMoreTokens()) {
-            String word = st.nextToken().toLowerCase();
-            pages.computeIfAbsent(word, k -> new HashSet<>()).add(info);
+        // Split text on characters that are not letters, apostrophes, hyphens, or specified special characters
+        String[] words = info.getText().split("[^\\p{L}'-^~´`ç]+");
+    
+        for (String word : words) {
+            if (!word.trim().isEmpty()) {
+                String lowerCaseWord = word.toLowerCase();
+                pages.computeIfAbsent(lowerCaseWord, k -> new HashSet<>()).add(info);
+            }
         }
     }
 
