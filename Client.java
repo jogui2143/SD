@@ -43,9 +43,9 @@ public class Client {
                         // Index URL option.
                         System.out.print("URL: ");
                         String url = scanner.nextLine();
-
+                        DepthControl depthControl = new DepthControl(url, 0);
                         // Calling the remote method to queue up the URL.
-                        gateway.queueUpUrl(url);
+                        gateway.queueUpUrl(depthControl);
                         System.out.println("MERICAAAA FUCK YEAH");
                         break;
                     case 2:
@@ -85,11 +85,7 @@ public class Client {
                                 
                                 // Here you should handle possible InputMismatchException in case of wrong input
                                 int fds = scanner.nextInt();
-                                if (fds == 1) {
-                                    forward = true;
-                                } else {
-                                    forward = false;
-                                }
+                                forward = fds == 1;
                             }
                         }
                         

@@ -37,14 +37,14 @@ public class Downloader {
             Registry reg = LocateRegistry.getRegistry("localhost");
             gateway = (GatewayInterface) reg.lookup("Gateway");
 
-            String url;
+            DepthControl obj;
             // Continuously loop to get and process new URLs.
             while(true){
-                url = gateway.getNewUrl();
+                obj = gateway.getNewUrl();
                 // Check if a new URL is available for processing.
-                if(url != null){
-                    System.out.println("URL: " + url);
-                    startCrawling(url);
+                if(obj != null){
+                    System.out.println("URL: " +obj.getUrl());
+                    startCrawling(obj);
                 } else{
                     // No new URL to crawl; the thread sleeps for a while.
                     System.out.println("No new URL to crawl");
@@ -59,10 +59,10 @@ public class Downloader {
     }
     
     // Method to start the web crawling process.
-    private static void startCrawling(String url){
+    private static void startCrawling(DepthControl dcObj){
         try {
 
-          
+            String url = dcObj.getUrl();
             // Connect to the URL and parse the HTML document.
             Document doc = Jsoup.connect(url).get();
             
@@ -74,8 +74,8 @@ public class Downloader {
 
                 // Increment the count for each URL found.
                 urlReferenceCount.put(newUrl, urlReferenceCount.getOrDefault(newUrl, 0) + 1);
-                
-                gateway.queueUpUrl(newUrl);
+                DepthControl newDc = new DepthControl(newUrl,dcObj.getDepth() + 1);
+                gateway.queueUpUrl(newDc);
             }
             // Extract the title and text content of the web page.
            

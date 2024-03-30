@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 // GatewayFunc class declaration, extending UnicastRemoteObject to enable RMI, and implementing GatewayInterface.
 public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface {
     // A concurrent queue to store URLs. ConcurrentLinkedQueue ensures thread-safe operations.
-    private ConcurrentLinkedQueue<String> urlQueue = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<DepthControl> urlQueue = new ConcurrentLinkedQueue<>();
     // Comment: "Queue of URLs, I guess :)" (presumably a note from the developer).
 
     // Constructor for GatewayFunc.
@@ -18,8 +18,9 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
 
     // Overriding the getNewUrl method from GatewayInterface.
     @Override
-    public String getNewUrl() throws RemoteException {
+    public DepthControl getNewUrl() throws RemoteException {
         // Polls and returns the head of the URL queue, or null if the queue is empty.
+        System.out.println("" + urlQueue.size() + " URLs in the queue");
         return urlQueue.poll();
     }
 
@@ -38,8 +39,12 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     }
 
     // Method to queue up URLs.
-    public void queueUpUrl(String url) throws RemoteException {
+    public void queueUpUrl(DepthControl url) throws RemoteException {
         // Adds a new URL to the concurrent queue.
+        System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
+        if(url.getDepth() > 1){
+            return;
+        }
         urlQueue.add(url);
     }
 }
