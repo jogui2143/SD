@@ -57,7 +57,7 @@ public class Client {
 
                         // Convert HashSet to List and sort it by the number of links.
                         List<PageContent> results = new ArrayList<>(resultSet);
-                        results.sort((p1, p2) -> Integer.compare(p2.getnumberOfRerences(), p1.getnumberOfRerences()));
+                        results.sort((p1, p2) -> Integer.compare(p2.getNumberOfReferences(), p1.getNumberOfReferences()));
                         // queres avancar
                         if (results != null && !results.isEmpty()) {
                             System.out.println("Results found for " + term + ":");
@@ -73,7 +73,7 @@ public class Client {
                                     System.out.println("Title: " + content.getTitle());
                                     System.out.println("URL: " + content.getUrl());
                                     System.out.println("Text: " + content.truncateText(content.getText()));
-                                    System.out.println("Links: " + content.getnumberOfRerences());
+                                    System.out.println("Links: " + content.getNumberOfReferences());
                                     System.out.println(); // For better readability
                                     iterator.remove();
                                     count++;
@@ -86,6 +86,10 @@ public class Client {
                                 // Here you should handle possible InputMismatchException in case of wrong input
                                 int fds = scanner.nextInt();
                                 forward = fds == 1;
+                                if(!iterator.hasNext() && forward) {
+                                    System.out.println("No more results for " + term);
+                                    break;
+                                }
                             }
                         }
                         
@@ -96,9 +100,17 @@ public class Client {
                         break;
                     case 3:
                         // Option for searching URLs that lead to a specific URL (code commented out).
-                        // System.out.print("URL: ");
-                        // url = scanner.nextLine();
-                        // gateway.searchURL(url);
+                        System.out.print("URL: ");
+                        url = scanner.nextLine();
+                        List<String> urls = gateway.searchURL(url);
+                        if (urls != null && !urls.isEmpty()) {
+                            System.out.println("URLs that lead to " + url + ":");
+                            for (String u : urls) {
+                                System.out.println(u);
+                            }
+                        } else {
+                            System.out.println("No URLs found that lead to " + url);
+                        }
                         break;
                     case 4:
                         // Admin page access option (code commented out).

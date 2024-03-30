@@ -32,4 +32,15 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
         }
         return results;
     }
+
+    public List<String> searchURL(String url) throws RemoteException {
+        for (Map.Entry<String, HashSet<PageContent>> entry : index.entrySet()) {
+            for (PageContent page : entry.getValue()) {
+                if (page.getUrl().equals(url)) {
+                    return page.getReferences();
+                }
+            }
+        }
+        return new ArrayList<>();
+    }
 }

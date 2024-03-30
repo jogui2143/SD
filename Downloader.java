@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 import java.net.DatagramPacket;
@@ -25,7 +27,7 @@ public class Downloader {
     private static final String MULTICAST_ADDRESS = "225.1.2.3";
     private static final int MT_PORT = 7002;
     // A Map to keep track of the number of times each URL is referenced.
-    private static final Map<String, Integer> urlReferenceCount = new HashMap<>();
+    private static final Map<String, List<String>> urlReferenceCount = new HashMap<>();
 
     // GatewayInterface variable for RMI communication.
     private static GatewayInterface gateway;
@@ -72,17 +74,18 @@ public class Downloader {
              for(Element link : links){
                 String newUrl = link.attr("abs:href");
 
+                List<String> references = urlReferenceCount.getOrDefault(newUrl, new ArrayList<>());
+                if(references.contains(url)) continue;
+                references.add(url);
                 // Increment the count for each URL found.
-                urlReferenceCount.put(newUrl, urlReferenceCount.getOrDefault(newUrl, 0) + 1);
+                urlReferenceCount.put(newUrl,references);
                 DepthControl newDc = new DepthControl(newUrl,dcObj.getDepth() + 1);
                 gateway.queueUpUrl(newDc);
             }
             // Extract the title and text content of the web page.
-           
-            int numberOfLinks = urlReferenceCount.getOrDefault(url, 0);
 
             // Creating a PageContent object with the extracted information and number of references.
-            PageContent info = new PageContent(doc.title(), doc.body().text(), url, numberOfLinks);
+            PageContent info = new PageContent(doc.title(), doc.body().text(), url, urlReferenceCount.get(url));
 
             sendInfo(info);
 

@@ -1,4 +1,5 @@
 import java.io.Serializable;
+import java.util.List;
 
 public class PageContent implements Serializable {
 
@@ -7,14 +8,14 @@ public class PageContent implements Serializable {
   private String title;
   private String text;
   private String url;
-  private int numberOfReferences; // New field for number of references
+  private List<String> references; // New field for number of references
 
   // Constructor
-  public PageContent(String title, String text, String url, int numberOfReferences) {
+  public PageContent(String title, String text, String url, List<String> references) {
       this.title = title;
       this.text = text;
       this.url = url;
-      this.numberOfReferences = numberOfReferences;
+      this.references = references;
   }
 
   public String getTitle(){
@@ -29,8 +30,12 @@ public class PageContent implements Serializable {
     return url;
   }
 
-  public int getnumberOfRerences(){
-    return numberOfReferences;
+  public List<String> getReferences(){
+    return references;
+  }
+
+  public int getNumberOfReferences(){
+    return references.size();
   }
 
   public String truncateText(String text) {
@@ -46,7 +51,7 @@ public class PageContent implements Serializable {
                "title='" + title + '\'' +
                ", url='" + url + '\'' +
                ", text='" + truncateText(text) + '\'' +
-               ", numberOfReferences=" + numberOfReferences +
+               ", numberOfReferences=" + getNumberOfReferences() +
                '}';
     }
 }

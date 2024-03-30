@@ -3,6 +3,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 // GatewayFunc class declaration, extending UnicastRemoteObject to enable RMI, and implementing GatewayInterface.
@@ -42,9 +43,20 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     public void queueUpUrl(DepthControl url) throws RemoteException {
         // Adds a new URL to the concurrent queue.
         System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
-        if(url.getDepth() > 1){
+        if(url.getDepth() > 2){
             return;
         }
         urlQueue.add(url);
+    }
+
+    public List<String> searchURL(String url) throws RemoteException {
+        try {
+            Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
+            BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+            return barrel.searchURL(url);
+        } catch (Exception e) {
+            System.err.println("Exception on searchURL(didn't connect to the Barrel)" + e.toString());
+            throw new RemoteException("Exception on searchURL(didn't connect to the Barrel)" + e.toString());
+        }
     }
 }
