@@ -60,6 +60,7 @@ public class Downloader {
                         } finally {
                             System.out.println("Thread " + Thread.currentThread().getId() + " finished processing URL: " + obj.getUrl());
                             activeTasks.decrementAndGet(); // Decrement active task count
+                            
                         }
                     });
                 } else {
