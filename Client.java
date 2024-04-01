@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 
 // Definition of the Client class.
@@ -29,7 +30,7 @@ public class Client {
                 System.out.println("1. Index URL");
                 System.out.println("2. Search term on pages");
                 System.out.println("3. Search all URLs that leads to a specific URL");
-                System.out.println("4. Admin page");
+                System.out.println("4. Info page");
                 System.out.println("5. Exit");
                 System.out.print("Option: ");
 
@@ -113,12 +114,23 @@ public class Client {
                         }
                         break;
                     case 4:
-                        // Admin page access option (code commented out).
-                        System.out.print("Username: ");
-                        String username = scanner.nextLine();
-                        System.out.print("Password: ");
-                        String password = scanner.nextLine();
-                        // gateway.adminPage(username, password);
+                        // info page access option
+                        //here you should be able to see the 10 most searched terms, the list of active barrels and the reponse time of the server
+                        try {
+                            List<String> topTerms = gateway.getTopSearchedTerms();
+                            System.out.println("Top 10 searched terms:");
+                            for (String t : topTerms) {
+                                System.out.println(t);
+                            }
+                            
+                            /*
+                             * long responseTime = gateway.getServerResponseTime();
+                             * System.out.println("Server Response Time: " + responseTime + "ms");
+                             */
+                        } catch (RemoteException e) {
+                            System.err.println("Remote exception retrieving info page data: " + e.getMessage());
+                            e.printStackTrace();
+                        }
                         break;
                     case 5:
                         // Exit option.

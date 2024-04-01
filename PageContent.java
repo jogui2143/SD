@@ -16,6 +16,9 @@ public class PageContent implements Serializable {
       this.text = text;
       this.url = url;
       this.references = references;
+      if(this.references == null){
+          this.references = List.of();
+      }
   }
 
   public String getTitle(){

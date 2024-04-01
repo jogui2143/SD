@@ -2,9 +2,13 @@
 import java.rmi.RemoteException;
 import java.rmi.registry.*;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 // GatewayFunc class declaration, extending UnicastRemoteObject to enable RMI, and implementing GatewayInterface.
 public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface {
@@ -12,9 +16,18 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     private ConcurrentLinkedQueue<DepthControl> urlQueue = new ConcurrentLinkedQueue<>();
     // Comment: "Queue of URLs, I guess :)" (presumably a note from the developer).
 
+    private final ConcurrentHashMap<String, Integer> searchTermFrequencies = new ConcurrentHashMap<>();
+
+
+
     // Constructor for GatewayFunc.
     public GatewayFunc() throws RemoteException {
         super(); // Calling the constructor of UnicastRemoteObject.
+    }
+
+    // Increment the count for a search term.
+    public void recordSearchTerm(String term) {
+        searchTermFrequencies.merge(term, 1, Integer::sum);
     }
 
     // Overriding the getNewUrl method from GatewayInterface.
@@ -31,7 +44,8 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
         try {
             Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
             BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
-            System.out.println("no search info ");
+           //System.out.println("no search info ");
+            recordSearchTerm(term);
             return barrel.searchUrls(term);
         } catch (Exception e) {
             System.err.println("Exception on searchinfo(didn't connect to the Barrel)" + e.toString());
@@ -59,4 +73,31 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
             throw new RemoteException("Exception on searchURL(didn't connect to the Barrel)" + e.toString());
         }
     }
+
+    @Override
+    public List<String> getTopSearchedTerms() {
+        // Implement logic to return the top searched terms.
+
+        // Sort the search term frequencies by value in descending order.
+        List<Map.Entry<String, Integer>> sortedTerms = searchTermFrequencies.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .collect(Collectors.toList());
+        
+        // Extract the top 10 searched terms.
+        List<String> topTerms = sortedTerms.stream()
+                .limit(10)
+                .map(entry -> entry.getKey() + ": " + entry.getValue())
+                .collect(Collectors.toList());
+        
+        return topTerms;
+        
+    }
+
+    /*
+     * @Override
+     * public long getServerResponseTime() {
+     * // Implement logic to return the server response time.
+     * }
+     */
+
 }

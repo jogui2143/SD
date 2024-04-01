@@ -8,4 +8,11 @@ public interface GatewayInterface extends Remote {
   // public void searchURL(String url) throws RemoteException;
   public DepthControl getNewUrl() throws RemoteException;
   public List<String> searchURL(String url) throws RemoteException;
+  
+  List<String> getTopSearchedTerms() throws RemoteException;
+
+  //List<Barrel> getActiveBarrels() throws RemoteException;
+
+  //int getActiveBarrelsCount() throws RemoteException;
+  //long getServerResponseTime() throws RemoteException;
 }
