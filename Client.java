@@ -1,11 +1,10 @@
 
 // Import statements for Java RMI and utilities.
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.rmi.registry.LocateRegistry;
 
 // Definition of the Client class.
@@ -53,11 +52,10 @@ public class Client {
                         String term = scanner.nextLine();
                         int pageNumber = 1;
 
-                        HashSet<PageContent> resultSet = gateway.searchinfo(term);
+                        ConcurrentSkipListSet<PageContent> results = gateway.searchinfo(term);
 
                         // Convert HashSet to List and sort it by the number of links.
-                        List<PageContent> results = new ArrayList<>(resultSet);
-                        results.sort((p1, p2) -> Integer.compare(p2.getNumberOfReferences(), p1.getNumberOfReferences()));
+                       
                         // queres avancar
                         if (results != null && !results.isEmpty()) {
                             System.out.println("Results found for " + term + ":");
@@ -113,12 +111,7 @@ public class Client {
                         }
                         break;
                     case 4:
-                        // Admin page access option (code commented out).
-                        System.out.print("Username: ");
-                        String username = scanner.nextLine();
-                        System.out.print("Password: ");
-                        String password = scanner.nextLine();
-                        // gateway.adminPage(username, password);
+                      
                         break;
                     case 5:
                         // Exit option.

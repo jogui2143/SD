@@ -2,14 +2,14 @@
 import java.rmi.RemoteException;
 import java.rmi.registry.*;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.PriorityBlockingQueue;
 
 // GatewayFunc class declaration, extending UnicastRemoteObject to enable RMI, and implementing GatewayInterface.
 public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface {
     // A concurrent queue to store URLs. ConcurrentLinkedQueue ensures thread-safe operations.
-    private ConcurrentLinkedQueue<DepthControl> urlQueue = new ConcurrentLinkedQueue<>();
+     private PriorityBlockingQueue<DepthControl> urlQueue =new PriorityBlockingQueue<>(100, new DepthControlComparator());
     // Comment: "Queue of URLs, I guess :)" (presumably a note from the developer).
 
     // Constructor for GatewayFunc.
@@ -27,7 +27,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
 
     // Overriding the searchinfo method from GatewayInterface.
     @Override
-    public HashSet<PageContent> searchinfo(String term) throws RemoteException {
+    public ConcurrentSkipListSet<PageContent> searchinfo(String term) throws RemoteException {
         try {
             Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
             BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
@@ -41,12 +41,13 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
 
     // Method to queue up URLs.
     public void queueUpUrl(DepthControl url) throws RemoteException {
-        // Adds a new URL to the concurrent queue.
         System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
-        if(url.getDepth() > 2){
-            return;
+        if (url.getDepth() <= 2) {
+            url.setTimestamp(System.currentTimeMillis());
+            urlQueue.add(url);
+        } else {
+            System.out.println("URL " + url.getUrl() + " not added due to depth limit");
         }
-        urlQueue.add(url);
     }
 
     public List<String> searchURL(String url) throws RemoteException {

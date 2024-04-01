@@ -12,9 +12,9 @@ import java.net.StandardSocketOptions;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.zip.GZIPInputStream;
 
 public class Barrel {
@@ -28,7 +28,7 @@ public class Barrel {
 
     // HashMap to store PageContent objects indexed by words.
    // ConcurrentHashMap to store PageContent objects indexed by words.
-    private static final ConcurrentHashMap<String, HashSet<PageContent>> pages = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> pages = new ConcurrentHashMap<>();
 
     public Barrel() throws IOException {
         gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
@@ -96,7 +96,7 @@ public class Barrel {
         for (String word : words) {
             if (!word.trim().isEmpty()) {
                 String lowerCaseWord = word.toLowerCase();
-                pages.computeIfAbsent(lowerCaseWord, k -> new HashSet<>()).add(info);
+                pages.computeIfAbsent(lowerCaseWord, k -> new ConcurrentSkipListSet<>()).add(info);
             }
         }
     }

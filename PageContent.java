@@ -1,7 +1,7 @@
 import java.io.Serializable;
 import java.util.List;
 
-public class PageContent implements Serializable {
+public class PageContent implements Serializable, Comparable<PageContent> {
 
   private static final int MAX_TEXT_LENGTH = 500;
 
@@ -35,6 +35,10 @@ public class PageContent implements Serializable {
   }
 
   public int getNumberOfReferences(){
+     if(this.references==null){
+      return 0;
+     }
+
     return references.size();
   }
 
@@ -54,4 +58,11 @@ public class PageContent implements Serializable {
                ", numberOfReferences=" + getNumberOfReferences() +
                '}';
     }
+
+    public int compareTo(PageContent other) {
+      // Comparing based on the number of references, larger numbers first.
+      int thisSize = this.references != null ? this.references.size() : 0;
+      int otherSize = other.references != null ? other.references.size() : 0;
+      return Integer.compare(otherSize, thisSize); // Note the order is reversed here
+  }
 }

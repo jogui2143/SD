@@ -14,6 +14,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -28,6 +32,8 @@ public class Downloader {
     private static final int MT_PORT = 7002;
     // A Map to keep track of the number of times each URL is referenced.
     private static final Map<String, List<String>> urlReferenceCount = new HashMap<>();
+    private static final ConcurrentHashMap<String, Boolean> visitedUrls = new ConcurrentHashMap<>();
+     private static final AtomicInteger activeTasks = new AtomicInteger(0);
 
     // GatewayInterface variable for RMI communication.
     private static GatewayInterface gateway;
@@ -39,18 +45,28 @@ public class Downloader {
             Registry reg = LocateRegistry.getRegistry("localhost");
             gateway = (GatewayInterface) reg.lookup("Gateway");
 
-            DepthControl obj;
+            // Create an ExecutorService with a fixed number of threads.
+            ExecutorService executor = Executors.newFixedThreadPool(10000); // Example: 10 threads
+
             // Continuously loop to get and process new URLs.
-            while(true){
-                obj = gateway.getNewUrl();
-                // Check if a new URL is available for processing.
-                if(obj != null){
-                    System.out.println("URL: " +obj.getUrl());
-                    startCrawling(obj);
-                } else{
-                    // No new URL to crawl; the thread sleeps for a while.
-                    System.out.println("No new URL to crawl");
-                    Thread.sleep(5000);
+            while (true) {
+                final DepthControl obj = gateway.getNewUrl();
+                if (obj != null) {
+                    activeTasks.incrementAndGet(); // Increment active task count
+                    executor.submit(() -> {
+                        try {
+                            System.out.println("Thread " + Thread.currentThread().getId() + " starts processing URL: " + obj.getUrl());
+                            startCrawling(obj);
+                        } finally {
+                            System.out.println("Thread " + Thread.currentThread().getId() + " finished processing URL: " + obj.getUrl());
+                            activeTasks.decrementAndGet(); // Decrement active task count
+                        }
+                    });
+                } else {
+                    if (activeTasks.get() == 0) {
+                        System.out.println("All threads are idle.");
+                    }
+                    Thread.sleep(500);
                 }
             }
         } catch (Exception e) {
@@ -65,6 +81,10 @@ public class Downloader {
         try {
 
             String url = dcObj.getUrl();
+            if(visitedUrls.putIfAbsent(url, true) != null) {
+                System.out.println("URL already visited: " + url);
+                return; // Skip crawling if URL is already visited.
+            }
             // Connect to the URL and parse the HTML document.
             Document doc = Jsoup.connect(url).get();
             
