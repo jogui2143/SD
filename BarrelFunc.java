@@ -13,9 +13,9 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
     }
 
     @Override
-    public HashSet<PageContent> searchUrls(String term) throws RemoteException {
+    public ConcurrentSkipListSet<PageContent> searchUrls(String term) throws RemoteException {
         String[] words = term.toLowerCase().split("\\s+");
-        HashSet<PageContent> results = new HashSet<>();
+        ConcurrentSkipListSet<PageContent> results = new ConcurrentSkipListSet<>();
 
         for (String word : words) {
             if (index.containsKey(word)) {
@@ -29,7 +29,7 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
                 }
             } else {
                 // If any word is not found in the index, the intersection will be empty
-                return new HashSet<>();
+                return new ConcurrentSkipListSet();
             }
         }
         return results;

@@ -3,11 +3,13 @@
 import java.rmi.RemoteException;
 import java.rmi.registry.*;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.stream.Collectors;
 
@@ -18,6 +20,9 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     private PriorityBlockingQueue<DepthControl> urlQueue = new PriorityBlockingQueue<>(100,
             new DepthControlComparator());
     private final ConcurrentHashMap<String, Integer> searchTermFrequencies = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, List<String>> searchURLCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> searchInfoCache = new ConcurrentHashMap<>();
+    private static final int MAX_RETRIES = 3; // Maximum number of retry attempts
     // Comment: "Queue of URLs, I guess :)" (presumably a note from the developer).
 
     // Constructor for GatewayFunc.
@@ -39,19 +44,24 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
 
     // Overriding the searchinfo method from GatewayInterface.
     @Override
-    public HashSet<PageContent> searchinfo(String term) throws RemoteException {
-        try {
-            Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
-            BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
-            // System.out.println("no search info ");
-            recordSearchTerm(term);
-            return barrel.searchUrls(term);
-        } catch (Exception e) {
-            System.err.println("Exception on searchinfo(didn't connect to the Barrel)" + e.toString());
-            throw new RemoteException("Exception on searchinfo(didn't connect to the Barrel)" + e.toString());
+    public ConcurrentSkipListSet<PageContent> searchinfo(String term) throws RemoteException {
+        int attempts = 0;
+        while (attempts < MAX_RETRIES) {
+            try {
+                Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
+                BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+                recordSearchTerm(term);
+                ConcurrentSkipListSet<PageContent> result = barrel.searchUrls(term);
+                searchInfoCache.put(term, new ConcurrentSkipListSet<>(result));
+                return result;
+            } catch (Exception e) {
+                attempts++;
+                System.err.println("Attempt " + attempts + " failed: " + e.toString());
+            }
         }
+        // Return from cache; if not present, return an empty set.
+        return searchInfoCache.getOrDefault(term, new ConcurrentSkipListSet<>());
     }
-
     // Method to queue up URLs.
     public void queueUpUrl(DepthControl url) throws RemoteException {
         System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
@@ -64,14 +74,20 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     }
 
     public List<String> searchURL(String url) throws RemoteException {
-        try {
-            Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
-            BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
-            return barrel.searchURL(url);
-        } catch (Exception e) {
-            System.err.println("Exception on searchURL(didn't connect to the Barrel)" + e.toString());
-            throw new RemoteException("Exception on searchURL(didn't connect to the Barrel)" + e.toString());
+        int attempts = 0;
+        while (attempts < MAX_RETRIES) {
+            try {
+                Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
+                BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+                List<String> result = barrel.searchURL(url);
+                searchURLCache.put(url, result);
+                return result;
+            } catch (Exception e) {
+                attempts++;
+                System.err.println("Attempt " + attempts + " failed: " + e.toString());
+            }
         }
+        return searchURLCache.getOrDefault(url, new ArrayList<>());
     }
 
     @Override

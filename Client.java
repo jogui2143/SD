@@ -54,7 +54,7 @@ public class Client {
                         String term = scanner.nextLine();
                         int pageNumber = 1;
 
-                        HashSet<PageContent> results = gateway.searchinfo(term);
+                        ConcurrentSkipListSet<PageContent> results = gateway.searchinfo(term);
 
                         // Convert HashSet to List and sort it by the number of links.
 

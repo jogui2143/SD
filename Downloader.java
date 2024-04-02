@@ -46,7 +46,7 @@ public class Downloader {
             gateway = (GatewayInterface) reg.lookup("Gateway");
 
             // Create an ExecutorService with a fixed number of threads.
-            ExecutorService executor = Executors.newFixedThreadPool(10000); // Example: 10 threads
+            ExecutorService executor = Executors.newFixedThreadPool(1000); // Example: 10 threads
 
             // Continuously loop to get and process new URLs.
             while (true) {
