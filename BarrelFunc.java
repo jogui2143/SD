@@ -29,7 +29,7 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
                 }
             } else {
                 // If any word is not found in the index, the intersection will be empty
-                return new ConcurrentSkipListSet();
+                return new ConcurrentSkipListSet<PageContent>();
             }
         }
         return results;
