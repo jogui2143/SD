@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -107,5 +108,16 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
 
         return topTerms;
 
+    }
+
+    public Set<Integer> getActiveBarrels() throws RemoteException {
+        try {
+            Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
+            BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+            return barrel.getActiveBarrels();
+        } catch (Exception e) {
+            System.err.println("Num deu" + e.toString());
+            throw new RemoteException("Num deu" + e.toString());
+        }
     }
 }

@@ -12,12 +12,14 @@ import java.net.StandardSocketOptions;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.zip.GZIPInputStream;
 
-public class Barrel {
+public class Barrel{
 
     private static final String MULTICAST_ADDRESS = "225.1.2.3";
     private static final int MT_PORT = 7002;
@@ -30,6 +32,12 @@ public class Barrel {
    // ConcurrentHashMap to store PageContent objects indexed by words.
     private static final ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> pages = new ConcurrentHashMap<>();
 
+    private static final Set<Integer> activeBarrels = new HashSet<>();
+
+    private int id;
+
+    public static int count = 0;
+
     public Barrel() throws IOException {
         gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
         socket = new MulticastSocket(MT_PORT);
@@ -38,8 +46,17 @@ public class Barrel {
         if (gpAddress instanceof InetAddress) {
             socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, netInterface);
         }
+        id = count++;
         socket.joinGroup(new InetSocketAddress(gpAddress, MT_PORT), netInterface);
+        activeBarrels.add(this.id);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> activeBarrels.remove(this.id)));
+        
     }
+
+    public static Set<Integer> getActiveBarrels() {
+        return new HashSet<>(activeBarrels);
+    }
+
 
     public void listenMsg() {
         byte[] buffer = new byte[65536];

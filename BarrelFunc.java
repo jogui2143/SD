@@ -45,4 +45,8 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
         }
         return new ArrayList<>();
     }
+
+    public Set<Integer> getActiveBarrels() throws RemoteException {
+        return Barrel.getActiveBarrels();
+    }
 }

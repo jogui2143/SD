@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -121,6 +122,11 @@ public class Client {
                             System.out.println("Top 10 searched terms:");
                             for (String t : topTerms) {
                                 System.out.println(t);
+                            }
+                            Set<Integer> activeBarrels = gateway.getActiveBarrels();
+                            System.out.println("Active barrels:");
+                            for (int b : activeBarrels) {
+                                System.out.println(b);
                             }
 
                             /*
