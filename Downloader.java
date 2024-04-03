@@ -28,7 +28,7 @@ public class Downloader {
     private static final String MULTICAST_ADDRESS = "225.1.2.3";
     private static final int MT_PORT = 7002;
     // A Map to keep track of the number of times each URL is referenced.
-    private static final Map<String, List<String>> urlReferenceCount = new HashMap<>();
+    private static final Map<String, Integer> urlInboundReferenceCount = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Boolean> visitedUrls = new ConcurrentHashMap<>();
      
 
@@ -62,59 +62,45 @@ public class Downloader {
     }
     
     // Method to start the web crawling process.
-    private static void startCrawling(DepthControl dcObj){
+    private static void startCrawling(DepthControl dcObj) {
         try {
             String url = dcObj.getUrl();
-            if(visitedUrls.putIfAbsent(url, true) != null) {
+            if (visitedUrls.putIfAbsent(url, true) != null) {
                 System.out.println("URL already visited: " + url);
                 return; // Skip crawling if URL is already visited.
             }
             
-            // Connect to the URL and parse the HTML document.
             Document doc = Jsoup.connect(url).get();
-            
             System.out.println("Processing URL: " + url);
     
-            // List to store hyperlinks found in the document
             List<String> hyperlinks = new ArrayList<>();
-    
-            // Selecting all hyperlink elements in the document.
             Elements links = doc.select("a[href]");
-            for(Element link : links){
+            for (Element link : links) {
                 String newUrl = link.attr("abs:href");
                 hyperlinks.add(newUrl);
-    
-                // You might still want to update the global map of references
-                List<String> references = urlReferenceCount.getOrDefault(newUrl, new ArrayList<>());
-                if(!references.contains(url)) {
-                    references.add(url);
-                    urlReferenceCount.put(newUrl, references);
-                }
-                urlReferenceCount.computeIfAbsent(newUrl, k -> new ArrayList<>()).add(url);
-                DepthControl newDc = new DepthControl(newUrl, dcObj.getDepth() + 1);
-                gateway.queueUpUrl(newDc);
+                
+                // Update inbound reference count
+                urlInboundReferenceCount.merge(newUrl, 1, Integer::sum);
+                
+                 //DepthControl newDc = new DepthControl(newUrl, dcObj.getDepth() + 1);
+                 //gateway.queueUpUrl(newDc);
             }
     
-            // Creating a PageContent object with the extracted information and the hyperlinks list.
-            int numberOfReferences = urlReferenceCount.getOrDefault(url, new ArrayList<>()).size();
-            PageContent info = new PageContent(doc.title(), doc.body().text(), url, hyperlinks,numberOfReferences);
-            
-            // Debugging: Print the URL and its hyperlinks
+            int numberOfInboundReferences = urlInboundReferenceCount.getOrDefault(url, 0);
+    
+            PageContent info = new PageContent(doc.title(), doc.body().text(), url, hyperlinks, numberOfInboundReferences);
             System.out.println("Sending PageContent info for URL: " + url + " with hyperlinks: " + hyperlinks);
     
             sendInfo(info);
     
         } catch (IOException e) {
-            // Handling IOException during web crawling.
             System.err.println("Exception on startCrawling" + e.toString());
             e.printStackTrace();
         } catch (Exception e) {
-            // Handling other exceptions during URL queueing.
             System.err.println("Error queueing up" + e.toString());
             e.printStackTrace();
         }
     }
-
     // Constants and variable for managing packet size and message IDs.
     private static final int MAX_PACKET_SIZE = 65000; // Maximum size for a datagram packet.
     private static int msgId = 0; // Variable to track message IDs.

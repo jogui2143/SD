@@ -3,6 +3,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.stream.Collectors;
 
 public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
     private UUID id; // Unique ID for this BarrelFunc instance
@@ -16,47 +17,46 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
     }
 
     @Override
-    public ConcurrentSkipListSet<PageContent> searchUrls(String term) throws RemoteException {
-        
-        String[] words = term.toLowerCase().split("\\s+");
-        ConcurrentSkipListSet<PageContent> results = new ConcurrentSkipListSet<>();
-
-        for (String word : words) {
-            if (index.containsKey(word)) {
-                if (results.isEmpty()) {
-                    // For the first word, add all its PageContent objects to the results
-                    results.addAll(index.get(word));
-                } else {
-                    // For subsequent words, retain only those PageContent objects that are also in
-                    // the new set
-                    results.retainAll(index.get(word));
-                }
-            } else {
-                // If any word is not found in the index, the intersection will be empty
-                return new ConcurrentSkipListSet<PageContent>();
-            }
+public ConcurrentSkipListSet<PageContent> searchUrls(String term) throws RemoteException {
+    String[] words = term.toLowerCase().split("\\s+");
+    
+    // Create a list of sets along with word length
+    List<ConcurrentSkipListSet<PageContent>> listOfSets = new ArrayList<>();
+    for (String word : words) {
+        if (index.containsKey(word)) {
+            listOfSets.add(index.get(word));
+        } else {
+            // If any word is not found, no need to continue
+            return new ConcurrentSkipListSet<>();
         }
-        return results;
     }
 
+    // Sort the list based on the size of each set
+    listOfSets.sort(Comparator.comparingInt(Set::size));
+
+    // Start with the smallest set
+    Iterator<ConcurrentSkipListSet<PageContent>> it = listOfSets.iterator();
+    ConcurrentSkipListSet<PageContent> results = new ConcurrentSkipListSet<>(it.next());
+
+    // Intersect with the rest
+    while (it.hasNext()) {
+        results.retainAll(it.next());
+        if (results.isEmpty()) {
+            // If intersection is empty, return immediately
+            return results;
+        }
+    }
+
+    return results;
+}
     public List<String> searchURL(String url) throws RemoteException {
-        Set<String> urlsThatReferenceTheUrl = new HashSet<>();
-    
-        // Loop over each entry in the index
-        for (Map.Entry<String, ConcurrentSkipListSet<PageContent>> entry : index.entrySet()) {
-            // Loop over each PageContent object in the ConcurrentSkipListSet
-            for (PageContent page : entry.getValue()) {
-                // Check if the references of the page contain the specified URL
-                if (page.getReferences().contains(url)) {
-                    // Add the URL of this PageContent to the set if it's not already present
-                    urlsThatReferenceTheUrl.add(page.getUrl());
-                }
-            }
-        }
-    
-        // Convert the set to a list to maintain the method signature
-        return new ArrayList<>(urlsThatReferenceTheUrl);
-    }
+    return index.values().parallelStream()
+                 .flatMap(Collection::stream)
+                 .filter(page -> page.getReferences().contains(url))
+                 .map(PageContent::getUrl)
+                 .distinct()
+                 .collect(Collectors.toList());
+}
 
     @Override
     public UUID getId() throws RemoteException{

@@ -2,7 +2,11 @@ import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -29,6 +33,7 @@ public class Barrel{
     private MulticastSocket socket;
     private InetAddress gpAddress;
     private NetworkInterface netInterface;
+    private static final String DATA_FILE = "barrel_data.dat";
 
     // HashMap to store PageContent objects indexed by words.
    // ConcurrentHashMap to store PageContent objects indexed by words.
@@ -52,8 +57,33 @@ public class Barrel{
         }
         activeBarrels.add(this.id);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> activeBarrels.remove(this.id)));
-        
+        loadData();
     }
+
+    private void saveData() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(DATA_FILE))) {
+            oos.writeObject(pages);
+        } catch (IOException e) {
+            System.err.println("Exception on saving data: " + e.toString());
+            e.printStackTrace();
+        }
+    }
+
+    private void loadData() {
+        File file = new File(DATA_FILE);
+        if (file.exists()) {
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+                ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> loadedPages = 
+                    (ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>>) ois.readObject();
+                pages.clear();
+                pages.putAll(loadedPages);
+            } catch (IOException | ClassNotFoundException e) {
+                System.err.println("Exception on loading data: " + e.toString());
+                e.printStackTrace();
+            }
+        }
+    }
+
 
     public UUID getId() throws RemoteException {
         return this.id;
@@ -118,6 +148,7 @@ public class Barrel{
                 pages.computeIfAbsent(lowerCaseWord, k -> new ConcurrentSkipListSet<>()).add(info);
             }
         }
+        saveData();
     }
 
     public static void main(String[] args) {
