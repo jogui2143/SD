@@ -15,9 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -33,7 +30,7 @@ public class Downloader {
     // A Map to keep track of the number of times each URL is referenced.
     private static final Map<String, List<String>> urlReferenceCount = new HashMap<>();
     private static final ConcurrentHashMap<String, Boolean> visitedUrls = new ConcurrentHashMap<>();
-     private static final AtomicInteger activeTasks = new AtomicInteger(0);
+     
 
     // GatewayInterface variable for RMI communication.
     private static GatewayInterface gateway;
@@ -67,45 +64,53 @@ public class Downloader {
     // Method to start the web crawling process.
     private static void startCrawling(DepthControl dcObj){
         try {
-
             String url = dcObj.getUrl();
             if(visitedUrls.putIfAbsent(url, true) != null) {
                 System.out.println("URL already visited: " + url);
                 return; // Skip crawling if URL is already visited.
             }
+            
             // Connect to the URL and parse the HTML document.
             Document doc = Jsoup.connect(url).get();
             
             System.out.println("Processing URL: " + url);
+    
+            // List to store hyperlinks found in the document
+            List<String> hyperlinks = new ArrayList<>();
+    
             // Selecting all hyperlink elements in the document.
-             Elements links = doc.select("a[href]");
-             for(Element link : links){
+            Elements links = doc.select("a[href]");
+            for(Element link : links){
                 String newUrl = link.attr("abs:href");
-
+                hyperlinks.add(newUrl);
+    
+                // You might still want to update the global map of references
                 List<String> references = urlReferenceCount.getOrDefault(newUrl, new ArrayList<>());
-                if(references.contains(url)) continue;
-                references.add(url);
-                // Increment the count for each URL found.
-                urlReferenceCount.put(newUrl,references);
-                DepthControl newDc = new DepthControl(newUrl,dcObj.getDepth() + 1);
-                //gateway.queueUpUrl(newDc);
+                if(!references.contains(url)) {
+                    references.add(url);
+                    urlReferenceCount.put(newUrl, references);
+                }
+                urlReferenceCount.computeIfAbsent(newUrl, k -> new ArrayList<>()).add(url);
+                DepthControl newDc = new DepthControl(newUrl, dcObj.getDepth() + 1);
+                gateway.queueUpUrl(newDc);
             }
-            // Extract the title and text content of the web page.
-
-            // Creating a PageContent object with the extracted information and number of references.
-            PageContent info = new PageContent(doc.title(), doc.body().text(), url, urlReferenceCount.get(url));
-
+    
+            // Creating a PageContent object with the extracted information and the hyperlinks list.
+            int numberOfReferences = urlReferenceCount.getOrDefault(url, new ArrayList<>()).size();
+            PageContent info = new PageContent(doc.title(), doc.body().text(), url, hyperlinks,numberOfReferences);
+            
+            // Debugging: Print the URL and its hyperlinks
+            System.out.println("Sending PageContent info for URL: " + url + " with hyperlinks: " + hyperlinks);
+    
             sendInfo(info);
-
-           
-
+    
         } catch (IOException e) {
             // Handling IOException during web crawling.
             System.err.println("Exception on startCrawling" + e.toString());
             e.printStackTrace();
         } catch (Exception e) {
             // Handling other exceptions during URL queueing.
-            System.err.println("Error queueing up :) CARALHO" + e.toString());
+            System.err.println("Error queueing up" + e.toString());
             e.printStackTrace();
         }
     }

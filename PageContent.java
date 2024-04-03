@@ -3,69 +3,72 @@ import java.util.List;
 
 public class PageContent implements Serializable, Comparable<PageContent> {
 
-  private static final int MAX_TEXT_LENGTH = 500;
+    private static final int MAX_TEXT_LENGTH = 500;
 
-  private String title;
-  private String text;
-  private String url;
-  private List<String> references; // New field for number of references
+    private String title;
+    private String text;
+    private String url;
+    private List<String> references;
+    private int numberOfReferences; // Field for the count of references
 
-  // Constructor
-  public PageContent(String title, String text, String url, List<String> references) {
+    public PageContent(String title, String text, String url, List<String> references, int numberOfReferences) {
       this.title = title;
       this.text = text;
       this.url = url;
       this.references = references;
-      if(this.references == null){
+      this.numberOfReferences = numberOfReferences;
+  
+      if(this.references == null) {
           this.references = List.of();
+          this.numberOfReferences = 0;
       }
+  }
+
+    // Getters and Setters
+    public String getTitle() {
+        return title;
     }
 
-  public String getTitle() {
-    return title;
-  }
-
-  public String getText() {
-    return text;
-  }
-
-  public String getUrl() {
-    return url;
-  }
-
-  public List<String> getReferences() {
-    return references;
-  }
-
-  public int getNumberOfReferences() {
-    if (this.references == null) {
-      return 0;
+    public String getText() {
+        return text;
     }
 
-    return references.size();
-  }
-
-  public String truncateText(String text) {
-    if (text.length() > MAX_TEXT_LENGTH) {
-      return text.substring(0, MAX_TEXT_LENGTH) + "...";
+    public String getUrl() {
+        return url;
     }
-    return text;
-  }
 
-  @Override
-  public String toString() {
-    return "PageContent{" +
-        "title='" + title + '\'' +
-        ", url='" + url + '\'' +
-        ", text='" + truncateText(text) + '\'' +
-        ", numberOfReferences=" + getNumberOfReferences() +
-        '}';
-  }
+    public List<String> getReferences() {
+        return references;
+    }
 
-  public int compareTo(PageContent other) {
-    // Comparing based on the number of references, larger numbers first.
-    int thisSize = this.references != null ? this.references.size() : 0;
-    int otherSize = other.references != null ? other.references.size() : 0;
-    return Integer.compare(otherSize, thisSize); // Note the order is reversed here
-  }
+    public int getNumberOfReferences() {
+        return numberOfReferences;
+    }
+
+    public void setNumberOfReferences(int numberOfReferences) {
+        this.numberOfReferences = numberOfReferences;
+    }
+
+    public String truncateText(String text) {
+        if (text.length() > MAX_TEXT_LENGTH) {
+            return text.substring(0, MAX_TEXT_LENGTH) + "...";
+        }
+        return text;
+    }
+
+    @Override
+    public int compareTo(PageContent other) {
+        // Comparing based on the number of references, larger numbers first.
+        return Integer.compare(other.numberOfReferences, this.numberOfReferences);
+    }
+
+    @Override
+    public String toString() {
+        return "PageContent{" +
+            "title='" + title + '\'' +
+            ", url='" + url + '\'' +
+            ", text='" + truncateText(text) + '\'' +
+            ", numberOfReferences=" + numberOfReferences +
+            '}';
+    }
 }

@@ -40,14 +40,22 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
     }
 
     public List<String> searchURL(String url) throws RemoteException {
+        Set<String> urlsThatReferenceTheUrl = new HashSet<>();
+    
+        // Loop over each entry in the index
         for (Map.Entry<String, ConcurrentSkipListSet<PageContent>> entry : index.entrySet()) {
+            // Loop over each PageContent object in the ConcurrentSkipListSet
             for (PageContent page : entry.getValue()) {
-                if (page.getUrl().equals(url)) {
-                    return page.getReferences();
+                // Check if the references of the page contain the specified URL
+                if (page.getReferences().contains(url)) {
+                    // Add the URL of this PageContent to the set if it's not already present
+                    urlsThatReferenceTheUrl.add(page.getUrl());
                 }
             }
         }
-        return new ArrayList<>();
+    
+        // Convert the set to a list to maintain the method signature
+        return new ArrayList<>(urlsThatReferenceTheUrl);
     }
 
     @Override
