@@ -122,10 +122,10 @@ public class Barrel{
 
     public static void main(String[] args) {
         try {
-            //LocateRegistry.createRegistry(1100); // Create RMI registry on port 1100
+            LocateRegistry.createRegistry(1100); // Create RMI registry on port 1100
             Barrel barrel = new Barrel();
             BarrelFunc barrelFunc = new BarrelFunc(barrel.getId(),pages);
-            Registry reg = LocateRegistry.getRegistry("localhost", 1099);
+            Registry reg = LocateRegistry.getRegistry("localhost", 1100);
             reg.rebind("Barrel", barrelFunc);
             barrel.listenMsg();
         } catch (IOException e) {

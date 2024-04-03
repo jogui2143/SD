@@ -41,38 +41,25 @@ public class Downloader {
     // Main method - entry point of the application.
     public static void main(String[] args) {
         try {
-            // Connecting to the RMI registry and looking up the GatewayInterface.
+            // Connect to the RMI registry and look up the GatewayInterface.
             Registry reg = LocateRegistry.getRegistry("localhost");
             gateway = (GatewayInterface) reg.lookup("Gateway");
 
-            // Create an ExecutorService with a fixed number of threads.
-            ExecutorService executor = Executors.newFixedThreadPool(1000); // Example: 10 threads
-
-            // Continuously loop to get and process new URLs.
+            // Main loop for processing URLs.
             while (true) {
                 final DepthControl obj = gateway.getNewUrl();
                 if (obj != null) {
-                    activeTasks.incrementAndGet(); // Increment active task count
-                    executor.submit(() -> {
-                        try {
-                            System.out.println("Thread " + Thread.currentThread().getId() + " starts processing URL: " + obj.getUrl());
-                            startCrawling(obj);
-                        } finally {
-                            System.out.println("Thread " + Thread.currentThread().getId() + " finished processing URL: " + obj.getUrl());
-                            activeTasks.decrementAndGet(); // Decrement active task count
-                            
-                        }
-                    });
+                    System.out.println("Processing URL: " + obj.getUrl());
+                    startCrawling(obj);
+                    System.out.println("Finished processing URL: " + obj.getUrl());
                 } else {
-                    if (activeTasks.get() == 0) {
-                        System.out.println("All threads are idle.");
-                    }
+                    System.out.println("No URL to process. Waiting...");
                     Thread.sleep(500);
                 }
             }
         } catch (Exception e) {
-            // Handling exceptions.
-            System.err.println("Exception on downloader" + e.toString());
+            // Handle exceptions.
+            System.err.println("Exception in downloader: " + e.toString());
             e.printStackTrace();
         }
     }

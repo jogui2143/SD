@@ -43,25 +43,30 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
         barrelRegistryAddresses.add("localhost:1099");
         barrelRegistryAddresses.add("localhost:1100");
     }
-
     private BarrelInterface getBarrel(String key) throws RemoteException {
-        try {
-            if (!barrels.containsKey(key)) {
-                // If the barrel is not in cache or a previous attempt failed, try to reconnect
-                String[] parts = key.split(":");
-                Registry registry = LocateRegistry.getRegistry(parts[0], barrelPorts.get(key));
-                BarrelInterface barrel = (BarrelInterface) registry.lookup("Barrel");
-                System.out.println("Key"+key+"in barrel"+barrel.getId());
-                barrels.put(key, barrel); // Cache the new barrel reference
+        final int MAX_RETRIES = 3;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                if (!barrels.containsKey(key)) {
+                    System.out.println("[Debug] Attempt " + attempt + " to connect to barrel: " + key);
+                    String[] parts = key.split(":");
+                    Registry registry = LocateRegistry.getRegistry(parts[0], barrelPorts.get(key));
+                    BarrelInterface barrel = (BarrelInterface) registry.lookup("Barrel");
+                    barrels.put(key, barrel); // Cache the new or reconnected barrel reference
+                    System.out.println("[Debug] Connected to barrel: " + barrel.getId());
+                    return barrel;
+                }
+            } catch (Exception e) {
+                System.err.println("[Debug] Connection attempt " + attempt + " to barrel failed: " + key);
+                barrels.remove(key); // Remove from cache if connection failed
+                if (attempt == MAX_RETRIES) {
+                    throw new RemoteException("Failed to connect to barrel after " + MAX_RETRIES + " attempts: " + key, e);
+                }
             }
-            return barrels.get(key);
-        } catch (Exception e) {
-            barrels.remove(key); // Remove from cache if connection failed
-            System.out.println("Key removed:"+key);
-            System.err.println("Connection to barrel failed: " + key + " - " + e.toString());
-            throw new RemoteException("Connection to barrel failed: " + key, e);
         }
+        return null; // Should not reach here normally
     }
+    
     private synchronized String getNextBarrelKey() {
         // Assume a simple round-robin key switching mechanism
         currentBarrelKey = currentBarrelKey.equals("localhost:1099") ? "localhost:1100" : "localhost:1099";
