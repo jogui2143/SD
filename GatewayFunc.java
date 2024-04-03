@@ -5,9 +5,12 @@ import java.rmi.registry.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -26,8 +29,44 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     // Comment: "Queue of URLs, I guess :)" (presumably a note from the developer).
 
     // Constructor for GatewayFunc.
+    private Map<String, BarrelInterface> barrels = new ConcurrentHashMap<>();
+    private Map<String, Integer> barrelPorts = new HashMap<>();
+    private String currentBarrelKey = "localhost:1099"; // Default starting barrel
+    private List<String> barrelRegistryAddresses = new ArrayList<>();
+
+    // Constructor for GatewayFunc.
     public GatewayFunc() throws RemoteException {
         super(); // Calling the constructor of UnicastRemoteObject.
+        // Initialize the ports for each barrel
+        barrelPorts.put("localhost:1099", 1099);
+        barrelPorts.put("localhost:1100", 1100);
+        barrelRegistryAddresses.add("localhost:1099");
+        barrelRegistryAddresses.add("localhost:1100");
+    }
+
+    private BarrelInterface getBarrel(String key) throws RemoteException {
+        try {
+            if (!barrels.containsKey(key)) {
+                // If the barrel is not in cache or a previous attempt failed, try to reconnect
+                String[] parts = key.split(":");
+                Registry registry = LocateRegistry.getRegistry(parts[0], barrelPorts.get(key));
+                BarrelInterface barrel = (BarrelInterface) registry.lookup("Barrel");
+                System.out.println("Key"+key+"in barrel"+barrel.getId());
+                barrels.put(key, barrel); // Cache the new barrel reference
+            }
+            return barrels.get(key);
+        } catch (Exception e) {
+            barrels.remove(key); // Remove from cache if connection failed
+            System.out.println("Key removed:"+key);
+            System.err.println("Connection to barrel failed: " + key + " - " + e.toString());
+            throw new RemoteException("Connection to barrel failed: " + key, e);
+        }
+    }
+    private synchronized String getNextBarrelKey() {
+        // Assume a simple round-robin key switching mechanism
+        currentBarrelKey = currentBarrelKey.equals("localhost:1099") ? "localhost:1100" : "localhost:1099";
+        System.out.println("fethinc"+currentBarrelKey);
+        return currentBarrelKey;
     }
 
     public void recordSearchTerm(String term) {
@@ -38,7 +77,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     @Override
     public DepthControl getNewUrl() throws RemoteException {
         // Polls and returns the head of the URL queue, or null if the queue is empty.
-        System.out.println("" + urlQueue.size() + " URLs in the queue");
+        //System.out.println("" + urlQueue.size() + " URLs in the queue");
         return urlQueue.poll();
     }
 
@@ -46,52 +85,61 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     @Override
     public ConcurrentSkipListSet<PageContent> searchinfo(String term) throws RemoteException {
         int attempts = 0;
-        while (attempts < MAX_RETRIES) {
+        while (attempts < barrelPorts.size()) { // Attempt to use each barrel once
+            String barrelKey = getNextBarrelKey();
             try {
-                Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
-                BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+                BarrelInterface barrel = getBarrel(barrelKey);
                 recordSearchTerm(term);
                 ConcurrentSkipListSet<PageContent> result = barrel.searchUrls(term);
                 searchInfoCache.put(term, new ConcurrentSkipListSet<>(result));
-                return result;
+                System.out.println(" with Barrel " + barrelKey );
+                return result; // If successful, return the result immediately
             } catch (Exception e) {
                 attempts++;
-                System.err.println("Attempt " + attempts + " failed: " + e.toString());
+                System.err.println("Attempt " + attempts + " with Barrel " + barrelKey + " failed: " + e.toString());
+                // After catching an exception, continue to the next iteration to try the next
+                // barrel
             }
         }
-        // Return from cache; if not present, return an empty set.
+        // If all barrels fail, return from cache; if not present, return an empty set.
+        System.out.println("returning from cach");
         return searchInfoCache.getOrDefault(term, new ConcurrentSkipListSet<>());
     }
+
     // Method to queue up URLs.
     public void queueUpUrl(DepthControl url) throws RemoteException {
-        System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
+        //System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
         if (url.getDepth() <= 2) {
             url.setTimestamp(System.currentTimeMillis());
             urlQueue.add(url);
         } else {
-            System.out.println("URL " + url.getUrl() + " not added due to depth limit");
+            //System.out.println("URL " + url.getUrl() + " not added due to depth limit");
         }
     }
 
     public List<String> searchURL(String url) throws RemoteException {
         int attempts = 0;
-        while (attempts < MAX_RETRIES) {
+        while (attempts < barrelPorts.size()) {
+            String barrelKey = getNextBarrelKey();
             try {
-                Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
-                BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
+                BarrelInterface barrel = getBarrel(barrelKey);
                 List<String> result = barrel.searchURL(url);
                 searchURLCache.put(url, result);
+                System.out.println(" with Barrel " + barrelKey );
                 return result;
             } catch (Exception e) {
                 attempts++;
-                System.err.println("Attempt " + attempts + " failed: " + e.toString());
+                System.err.println("Attempt " + attempts + " with Barrel " + barrelKey + " failed: " + e.toString());
+                // If an exception occurs, try the next barrel on the next iteration
             }
         }
+        // If all barrels have been tried and all failed, return the cached result or an
+        // empty list
         return searchURLCache.getOrDefault(url, new ArrayList<>());
     }
 
     @Override
-    public List<String> getTopSearchedTerms() throws RemoteException{
+    public List<String> getTopSearchedTerms() throws RemoteException {
         // Implement logic to return the top searched terms.
 
         // Sort the search term frequencies by value in descending order.
@@ -109,14 +157,21 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
 
     }
 
-    public Set<Integer> getActiveBarrels() throws RemoteException {
-        try {
-            Registry reg2 = LocateRegistry.getRegistry("localhost", 1099);
-            BarrelInterface barrel = (BarrelInterface) reg2.lookup("Barrel");
-            return barrel.getActiveBarrels();
-        } catch (Exception e) {
-            System.err.println("Num deu" + e.toString());
-            throw new RemoteException("Num deu" + e.toString());
+    public Set<UUID> getActiveBarrels() throws RemoteException {
+        Set<UUID> activeBarrelIds = new HashSet<>();
+        for (String registryAddress : barrelRegistryAddresses) {
+            try {
+                String[] parts = registryAddress.split(":");
+                Registry registry = LocateRegistry.getRegistry(parts[0], Integer.parseInt(parts[1]));
+                BarrelInterface barrel = (BarrelInterface) registry.lookup("Barrel");
+    
+                UUID barrelId = barrel.getId(); // Get the Barrel's UUID
+                activeBarrelIds.add(barrelId); // Add the UUID to the set if connection is successful
+            } catch (Exception e) {
+                System.err.println("Failed to connect to barrel at " + registryAddress + ": " + e.toString());
+                // Connection failure means the barrel is not active, so its UUID isn't added
+            }
         }
+        return activeBarrelIds;
     }
 }

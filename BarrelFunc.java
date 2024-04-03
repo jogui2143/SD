@@ -5,10 +5,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
+    private UUID id; // Unique ID for this BarrelFunc instance
     private ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> index;
 
-    public BarrelFunc(ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> index) throws RemoteException {
+    // Constructor with ID parameter
+    public BarrelFunc(UUID id, ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> index) throws RemoteException {
         super();
+        this.id = id; // Initialize the ID
         this.index = index;
     }
 
@@ -46,7 +49,12 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
         return new ArrayList<>();
     }
 
-    public Set<Integer> getActiveBarrels() throws RemoteException {
-        return Barrel.getActiveBarrels();
+    @Override
+    public UUID getId() throws RemoteException{
+        System.out.println("returnin"+this.id);
+        return this.id;
     }
+
+
+    
 }

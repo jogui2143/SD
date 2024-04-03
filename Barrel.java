@@ -10,11 +10,13 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.StandardSocketOptions;
 import java.rmi.registry.Registry;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.zip.GZIPInputStream;
@@ -32,11 +34,8 @@ public class Barrel{
    // ConcurrentHashMap to store PageContent objects indexed by words.
     private static final ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> pages = new ConcurrentHashMap<>();
 
-    private static final Set<Integer> activeBarrels = new HashSet<>();
-
-    private int id;
-
-    public static int count = 0;
+    private static final Set<UUID> activeBarrels = new HashSet<>();
+    private final UUID id; // Unique ID for each Barrel instance
 
     public Barrel() throws IOException {
         gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
@@ -46,15 +45,18 @@ public class Barrel{
         if (gpAddress instanceof InetAddress) {
             socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, netInterface);
         }
-        id = count++;
+        
         socket.joinGroup(new InetSocketAddress(gpAddress, MT_PORT), netInterface);
+        synchronized (Barrel.class) {
+            this.id = UUID.randomUUID(); // Generate a unique ID
+        }
         activeBarrels.add(this.id);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> activeBarrels.remove(this.id)));
         
     }
 
-    public static Set<Integer> getActiveBarrels() {
-        return new HashSet<>(activeBarrels);
+    public UUID getId() throws RemoteException {
+        return this.id;
     }
 
 
@@ -120,9 +122,10 @@ public class Barrel{
 
     public static void main(String[] args) {
         try {
+            //LocateRegistry.createRegistry(1100); // Create RMI registry on port 1100
             Barrel barrel = new Barrel();
-            BarrelFunc barrelFunc = new BarrelFunc(pages);
-            Registry reg = LocateRegistry.getRegistry(1099);
+            BarrelFunc barrelFunc = new BarrelFunc(barrel.getId(),pages);
+            Registry reg = LocateRegistry.getRegistry("localhost", 1099);
             reg.rebind("Barrel", barrelFunc);
             barrel.listenMsg();
         } catch (IOException e) {
