@@ -31,17 +31,17 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     // Constructor for GatewayFunc.
     private Map<String, BarrelInterface> barrels = new ConcurrentHashMap<>();
     private Map<String, Integer> barrelPorts = new HashMap<>();
-    private String currentBarrelKey = "localhost:1099"; // Default starting barrel
+    private String currentBarrelKey = "barrel:1099"; // Default starting barrel
     private List<String> barrelRegistryAddresses = new ArrayList<>();
 
     // Constructor for GatewayFunc.
     public GatewayFunc() throws RemoteException {
         super(); // Calling the constructor of UnicastRemoteObject.
         // Initialize the ports for each barrel
-        barrelPorts.put("localhost:1099", 1099);
-        barrelPorts.put("localhost:1100", 1100);
-        barrelRegistryAddresses.add("localhost:1099");
-        barrelRegistryAddresses.add("localhost:1100");
+        barrelPorts.put("barrel:1099", 1099);
+        barrelPorts.put("barrel:1100", 1100);
+        barrelRegistryAddresses.add("barrel:1099");
+        barrelRegistryAddresses.add("barrel:1100");
     }
     private BarrelInterface getBarrel(String key) throws RemoteException {
         final int MAX_RETRIES = 3;
@@ -69,7 +69,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     
     private synchronized String getNextBarrelKey() {
         // Assume a simple round-robin key switching mechanism
-        currentBarrelKey = currentBarrelKey.equals("localhost:1099") ? "localhost:1100" : "localhost:1099";
+        currentBarrelKey = currentBarrelKey.equals("barrel:1099") ? "barrel:1100" : "barrel:1099";
         System.out.println("fethinc"+currentBarrelKey);
         return currentBarrelKey;
     }
@@ -114,7 +114,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     // Method to queue up URLs.
     public void queueUpUrl(DepthControl url) throws RemoteException {
         //System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
-        if (url.getDepth() <= 2) {
+        if (url.getDepth() <= 1) {
             url.setTimestamp(System.currentTimeMillis());
             urlQueue.add(url);
         } else {

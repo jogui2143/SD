@@ -16,7 +16,7 @@ public class Client {
     public static void main(String args[]) {
         try {
             // Connecting to the RMI registry at the specified address ('localhost' here).
-            Registry reg = LocateRegistry.getRegistry("localhost");
+            Registry reg = LocateRegistry.getRegistry("gateway");
 
             // Looking up the GatewayInterface in the RMI registry.
             GatewayInterface gateway = (GatewayInterface) reg.lookup("Gateway");

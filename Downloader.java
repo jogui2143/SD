@@ -42,7 +42,7 @@ public class Downloader {
     public static void main(String[] args) {
         try {
             // Connect to the RMI registry and look up the GatewayInterface.
-            Registry reg = LocateRegistry.getRegistry("localhost");
+            Registry reg = LocateRegistry.getRegistry("gateway");
             gateway = (GatewayInterface) reg.lookup("Gateway");
 
             // Main loop for processing URLs.

@@ -1,0 +1,42 @@
+services:
+  downloader:
+    build:
+      dockerfile: Dockerfile
+      target: dev
+    tty: true
+    stdin_open: true
+    command: java -cp lib/jsoup-1.17.2.jar:. Downloader
+    scale: 1
+    depends_on:
+      - gateway
+
+  gateway:
+    build:
+      dockerfile: Dockerfile
+      target: dev
+    tty: true
+    stdin_open: true
+    command: java GatewayS
+    ports:
+        - "1099:1099"
+
+  client:
+    build:
+      dockerfile: Dockerfile
+      target: dev
+    tty: true
+    stdin_open: true
+    command: java Client
+    depends_on:
+      - gateway
+
+  barrel:
+    build:
+      dockerfile: Dockerfile
+      target: dev
+    tty: true
+    stdin_open: true
+    scale: 1
+    command: java Barrel
+    ports:
+      - "1100:1100"
