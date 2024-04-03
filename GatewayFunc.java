@@ -114,7 +114,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     // Method to queue up URLs.
     public void queueUpUrl(DepthControl url) throws RemoteException {
         //System.out.println("URL: " + url.getUrl() + " Depth: " + url.getDepth());
-        if (url.getDepth() <= 1) {
+        if (url.getDepth() <= 2) {
             url.setTimestamp(System.currentTimeMillis());
             urlQueue.add(url);
         } else {

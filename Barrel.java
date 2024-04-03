@@ -26,33 +26,52 @@ public class Barrel{
     private static final String MULTICAST_ADDRESS = "225.1.2.3";
     private static final int MT_PORT = 7002;
 
-    private MulticastSocket socket;
-    private InetAddress gpAddress;
-    private NetworkInterface netInterface;
+    // Shared across all instances.
+    private static MulticastSocket socket;
+    private static InetAddress gpAddress;
+    private static NetworkInterface netInterface;
 
-    // HashMap to store PageContent objects indexed by words.
-   // ConcurrentHashMap to store PageContent objects indexed by words.
+    // Shared content storage.
     private static final ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> pages = new ConcurrentHashMap<>();
 
-    private static final Set<UUID> activeBarrels = new HashSet<>();
+    // Tracking active Barrel instances.
+    private static final Set<UUID> activeBarrels = ConcurrentHashMap.newKeySet();
     private final UUID id; // Unique ID for each Barrel instance
 
-    public Barrel() throws IOException {
-        gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
-        socket = new MulticastSocket(MT_PORT);
-        netInterface = NetworkInterface.getNetworkInterfaces().nextElement();
+    // Static initializer block to initialize shared resources.
+    static {
+        try {
+            gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
+            socket = new MulticastSocket(MT_PORT);
+            netInterface = NetworkInterface.getNetworkInterfaces().nextElement();
 
-        if (gpAddress instanceof InetAddress) {
-            socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, netInterface);
+            if (gpAddress instanceof InetAddress) {
+                socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, netInterface);
+            }
+
+            socket.joinGroup(new InetSocketAddress(gpAddress, MT_PORT), netInterface);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to initialize static resources for Barrel.", e);
         }
-        
-        socket.joinGroup(new InetSocketAddress(gpAddress, MT_PORT), netInterface);
+    }
+
+    public Barrel() {
         synchronized (Barrel.class) {
             this.id = UUID.randomUUID(); // Generate a unique ID
         }
         activeBarrels.add(this.id);
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> activeBarrels.remove(this.id)));
-        
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            activeBarrels.remove(this.id);
+            if (activeBarrels.isEmpty()) {
+                // If this is the last active barrel, clean up the shared resources.
+                try {
+                    socket.leaveGroup(new InetSocketAddress(gpAddress, MT_PORT), netInterface);
+                    socket.close();
+                } catch (IOException e) {
+                    // Log or handle the exception as needed.
+                }
+            }
+        }));
     }
 
     public UUID getId() throws RemoteException {
