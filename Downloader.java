@@ -88,7 +88,7 @@ public class Downloader {
                 // Increment the count for each URL found.
                 urlReferenceCount.put(newUrl,references);
                 DepthControl newDc = new DepthControl(newUrl,dcObj.getDepth() + 1);
-                gateway.queueUpUrl(newDc);
+                //gateway.queueUpUrl(newDc);
             }
             // Extract the title and text content of the web page.
 

@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
     private UUID id; // Unique ID for this BarrelFunc instance
     private ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> index;
-
+   
     // Constructor with ID parameter
     public BarrelFunc(UUID id, ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> index) throws RemoteException {
         super();
@@ -17,6 +17,7 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
 
     @Override
     public ConcurrentSkipListSet<PageContent> searchUrls(String term) throws RemoteException {
+        
         String[] words = term.toLowerCase().split("\\s+");
         ConcurrentSkipListSet<PageContent> results = new ConcurrentSkipListSet<>();
 

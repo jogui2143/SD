@@ -122,14 +122,24 @@ public class Barrel{
 
     public static void main(String[] args) {
         try {
-            LocateRegistry.createRegistry(1100); // Create RMI registry on port 1100
+            System.out.println("[Barrel] Starting Barrel service...");
+            System.out.println("[Barrel] Creating RMI registry on port 1100");
+            //LocateRegistry.createRegistry(1099);
+    
+            System.out.println("[Barrel] Instantiating Barrel and BarrelFunc objects");
             Barrel barrel = new Barrel();
-            BarrelFunc barrelFunc = new BarrelFunc(barrel.getId(),pages);
-            Registry reg = LocateRegistry.getRegistry("localhost", 1100);
+            BarrelFunc barrelFunc = new BarrelFunc(barrel.getId(), pages);
+    
+            System.out.println("[Barrel] Getting the Registry reference");
+            Registry reg = LocateRegistry.getRegistry("localhost", 1099);
+    
+            System.out.println("[Barrel] Binding the BarrelFunc to the registry");
             reg.rebind("Barrel", barrelFunc);
+    
+            System.out.println("[Barrel] Starting to listen for messages");
             barrel.listenMsg();
         } catch (IOException e) {
-            System.err.println("Exception on barrel" + e.toString());
+            System.err.println("[Barrel] Exception occurred: " + e.toString());
             e.printStackTrace();
         }
     }
