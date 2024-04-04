@@ -1,3 +1,4 @@
+
 // Import statements for Jsoup (a Java HTML parser) and Java networking and I/O classes.
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -7,6 +8,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
@@ -14,7 +17,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -22,139 +24,148 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.StandardSocketOptions;
 
-// Definition of the Downloader class.
+
 public class Downloader {
-    // Constants for multicast networking.
     private static final String MULTICAST_ADDRESS = "225.1.2.3";
-    private static final int MT_PORT = 7002;
-    // A Map to keep track of the number of times each URL is referenced.
-    private static final Map<String, Integer> urlInboundReferenceCount = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<String, Boolean> visitedUrls = new ConcurrentHashMap<>();
-     
-
-    // GatewayInterface variable for RMI communication.
+    private static final int MULTICAST_PORT = 7002;
+    private static final int MAX_PACKET_SIZE = 65000;
+    private static int msgId = 0;
+    private static Registry registry;
     private static GatewayInterface gateway;
+    private static final Map<String, Integer> urlInboundReferenceCount = new HashMap<>();
 
-    // Main method - entry point of the application.
     public static void main(String[] args) {
-        try {
-            // Connect to the RMI registry and look up the GatewayInterface.
-            Registry reg = LocateRegistry.getRegistry("localhost");
-            gateway = (GatewayInterface) reg.lookup("Gateway");
+        initialize();
+        startCrawlingLoop();
+    }
 
-            // Main loop for processing URLs.
+    private static void initialize() {
+        try {
+            registry = LocateRegistry.getRegistry("localhost");
+            gateway = (GatewayInterface) registry.lookup("Gateway");
+        } catch (RemoteException | NotBoundException e) {
+            handleException("Error initializing RMI registry", e);
+        }
+    }
+
+   
+
+    private static void startCrawlingLoop() {
+        try {
             while (true) {
                 final DepthControl obj = gateway.getNewUrl();
                 if (obj != null) {
-                    System.out.println("Processing URL: " + obj.getUrl());
-                    startCrawling(obj);
-                    System.out.println("Finished processing URL: " + obj.getUrl());
+                    processUrl(obj);
                 } else {
                     System.out.println("No URL to process. Waiting...");
                     Thread.sleep(500);
                 }
             }
-        } catch (Exception e) {
-            // Handle exceptions.
-            System.err.println("Exception in downloader: " + e.toString());
-            e.printStackTrace();
+        } catch (RemoteException | InterruptedException e) {
+            handleException("Error during crawling loop", e);
         }
     }
-    
-    // Method to start the web crawling process.
-    private static void startCrawling(DepthControl dcObj) {
+
+    private static void processUrl(DepthControl dcObj) {
+        String url = dcObj.getUrl();
         try {
-            String url = dcObj.getUrl();
-            if (visitedUrls.putIfAbsent(url, true) != null) {
-                System.out.println("URL already visited: " + url);
-                return; // Skip crawling if URL is already visited.
+            // Check if the URL protocol is HTTP or HTTPS
+            if (url.startsWith("http://") || url.startsWith("https://")) {
+                Document doc = Jsoup.connect(url).get();
+                System.out.println("Processing URL: " + url);
+                extractHyperlinks(doc, dcObj);
+                sendPageContentInfo(doc, url);
+            } else {
+                System.out.println("Skipping non-HTTP/HTTPS URL: " + url);
+                // Handle non-HTTP/HTTPS URLs differently or log them
             }
-            
-            Document doc = Jsoup.connect(url).get();
-            System.out.println("Processing URL: " + url);
-    
-            List<String> hyperlinks = new ArrayList<>();
-            Elements links = doc.select("a[href]");
-            for (Element link : links) {
-                String newUrl = link.attr("abs:href");
-                hyperlinks.add(newUrl);
-                
-                // Update inbound reference count
-                urlInboundReferenceCount.merge(newUrl, 1, Integer::sum);
-                
-                 //DepthControl newDc = new DepthControl(newUrl, dcObj.getDepth() + 1);
-                 //gateway.queueUpUrl(newDc);
-            }
-    
-            int numberOfInboundReferences = urlInboundReferenceCount.getOrDefault(url, 0);
-    
-            PageContent info = new PageContent(doc.title(), doc.body().text(), url, hyperlinks, numberOfInboundReferences);
-            System.out.println("Sending PageContent info for URL: " + url + " with hyperlinks: " + hyperlinks);
-    
-            sendInfo(info);
-    
         } catch (IOException e) {
-            System.err.println("Exception on startCrawling" + e.toString());
-            e.printStackTrace();
-        } catch (Exception e) {
-            System.err.println("Error queueing up" + e.toString());
-            e.printStackTrace();
+            handleException("Error processing URL: " + url, e);
         }
     }
-    // Constants and variable for managing packet size and message IDs.
-    private static final int MAX_PACKET_SIZE = 65000; // Maximum size for a datagram packet.
-    private static int msgId = 0; // Variable to track message IDs.
 
-    // Method to send the PageContent info using multicast.
+    private static void extractHyperlinks(Document doc, DepthControl dcObj) throws RemoteException {
+        List<String> hyperlinks = new ArrayList<>();
+        Elements links = doc.select("a[href]");
+        for (Element link : links) {
+            String newUrl = link.attr("abs:href");
+            hyperlinks.add(newUrl);
+            urlInboundReferenceCount.merge(newUrl, 1, Integer::sum);
+            DepthControl newDc = new DepthControl(newUrl, dcObj.getDepth() + 1);
+            gateway.queueUpUrl(newDc);
+        }
+    }
+
+    private static void sendPageContentInfo(Document doc, String url) {
+        try {
+            List<String> hyperlinks = extractHyperlinks(doc);
+            int numberOfInboundReferences = urlInboundReferenceCount.getOrDefault(url, 0);
+            PageContent info = new PageContent(doc.title(), doc.body().text(), url, hyperlinks, numberOfInboundReferences);
+            sendInfo(info);
+        } catch (IOException e) {
+            handleException("Error sending page content info", e);
+        }
+    }
+
+    private static List<String> extractHyperlinks(Document doc) {
+        List<String> hyperlinks = new ArrayList<>();
+        Elements links = doc.select("a[href]");
+        for (Element link : links) {
+            String newUrl = link.attr("abs:href");
+            hyperlinks.add(newUrl);
+        }
+
+        System.out.println("Contents of urlInboundReferenceCount:");
+    for (Map.Entry<String, Integer> entry : urlInboundReferenceCount.entrySet()) {
+        System.out.println(entry.getKey() + ": " + entry.getValue());
+    }
+        return hyperlinks;
+    }
+
     private static void sendInfo(PageContent info) throws IOException {
-        System.out.println("sending info ");
-        InetAddress gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
-        NetworkInterface netInterface = NetworkInterface.getNetworkInterfaces().nextElement();
-        msgId++; // Increment message ID for each new message.
+        System.out.println("Sending page content info...");
+        InetAddress multicastAddress = InetAddress.getByName(MULTICAST_ADDRESS);
+        NetworkInterface networkInterface = NetworkInterface.getNetworkInterfaces().nextElement();
+        msgId++;
 
-        // Setting up streams for serialization and compression.
-        try (ByteArrayOutputStream byteChad = new ByteArrayOutputStream();
-             GZIPOutputStream outZip = new GZIPOutputStream(byteChad);
-             ObjectOutputStream oos = new ObjectOutputStream(outZip);) {
+        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+             GZIPOutputStream gzipStream = new GZIPOutputStream(byteStream);
+             ObjectOutputStream objectStream = new ObjectOutputStream(gzipStream)) {
 
-            // Writing the PageContent object to the ObjectOutputStream.
-            oos.writeObject(info);
-            oos.close();
-            // Convert the serialized data to a byte array.
-            byte[] data = byteChad.toByteArray();
+            objectStream.writeObject(info);
+            objectStream.close();
 
-            // Calculate the number of packets needed to send the data.
+            byte[] data = byteStream.toByteArray();
             int allParts = (data.length + MAX_PACKET_SIZE - 1) / MAX_PACKET_SIZE;
-            // Create a multicast socket.
+
             try (MulticastSocket socket = new MulticastSocket()) {
-                // Set socket options for multicast.
-                socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, netInterface);
-                // Loop to send each part of the data as a separate
-                // packet.
+                socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, networkInterface);
+
                 for (int i = 0; i < allParts; i++) {
-                    // Calculate start and end indices for the current packet's data section.
                     int start = i * MAX_PACKET_SIZE;
                     int end = Math.min(data.length, (i + 1) * MAX_PACKET_SIZE);
-                    // Extract the relevant section of data for this packet.
                     byte[] section = Arrays.copyOfRange(data, start, end);
 
-                    // Setting up a stream to construct the packet payload.
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    DataOutputStream dos = new DataOutputStream(baos);
-                    // Writing message ID, part number, total parts, and the data section to the stream.
-                    dos.writeInt(msgId);
-                    dos.writeInt(i);
-                    dos.writeInt(allParts);
-                    dos.write(section);
-                    // Convert the stream to a byte array for the packet.
-                    byte[] packData = baos.toByteArray();
+                    try (ByteArrayOutputStream sectionStream = new ByteArrayOutputStream();
+                         DataOutputStream dataStream = new DataOutputStream(sectionStream)) {
 
-                    // Creating the datagram packet with the multicast address and port.
-                    DatagramPacket packet = new DatagramPacket(packData, packData.length, gpAddress, MT_PORT);
-                    // Sending the packet via the multicast socket.
-                    socket.send(packet);
+                        dataStream.writeInt(msgId);
+                        dataStream.writeInt(i);
+                        dataStream.writeInt(allParts);
+                        dataStream.write(section);
+
+                        byte[] packetData = sectionStream.toByteArray();
+                        DatagramPacket packet = new DatagramPacket(packetData, packetData.length, multicastAddress, MULTICAST_PORT);
+                        socket.send(packet);
+                    }
                 }
             }
         }
     }
+
+    private static void handleException(String message, Exception e) {
+        System.err.println(message + ": " + e.getMessage());
+        e.printStackTrace();
+    }
 }
+

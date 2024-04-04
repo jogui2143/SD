@@ -1,4 +1,4 @@
-// Importing necessary classes for Java RMI registry handling.
+
 import java.rmi.registry.*;
 import java.io.File;
 
@@ -6,6 +6,7 @@ public class GatewayS {
     // The main method - the entry point of the application.
     public static void main(String[] args) {
         try {
+
             // Existing setup code...
             GatewayFunc obj = new GatewayFunc();
             Registry reg = LocateRegistry.createRegistry(1099);

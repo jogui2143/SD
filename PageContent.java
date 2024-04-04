@@ -9,20 +9,20 @@ public class PageContent implements Serializable, Comparable<PageContent> {
     private String text;
     private String url;
     private List<String> references;
-    private int numberOfReferences; // Field for the count of references
+    private int numberOfReferences;
 
     public PageContent(String title, String text, String url, List<String> references, int numberOfReferences) {
-      this.title = title;
-      this.text = text;
-      this.url = url;
-      this.references = references;
-      this.numberOfReferences = numberOfReferences;
-  
-      if(this.references == null) {
-          this.references = List.of();
-          this.numberOfReferences = 0;
-      }
-  }
+        this.title = title;
+        this.text = text;
+        this.url = url;
+        this.references = references;
+        this.numberOfReferences = numberOfReferences;
+
+        if (this.references == null) {
+            this.references = List.of();
+            this.numberOfReferences = 0;
+        }
+    }
 
     // Getters and Setters
     public String getTitle() {
@@ -58,17 +58,17 @@ public class PageContent implements Serializable, Comparable<PageContent> {
 
     @Override
     public int compareTo(PageContent other) {
-        // Comparing based on the number of references, larger numbers first.
+
         return Integer.compare(other.numberOfReferences, this.numberOfReferences);
     }
 
     @Override
     public String toString() {
         return "PageContent{" +
-            "title='" + title + '\'' +
-            ", url='" + url + '\'' +
-            ", text='" + truncateText(text) + '\'' +
-            ", numberOfReferences=" + numberOfReferences +
-            '}';
+                "title='" + title + '\'' +
+                ", url='" + url + '\'' +
+                ", text='" + truncateText(text) + '\'' +
+                ", numberOfReferences=" + numberOfReferences +
+                '}';
     }
 }
