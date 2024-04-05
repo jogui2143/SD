@@ -26,9 +26,7 @@ import java.net.StandardSocketOptions;
 
 
 public class Downloader {
-    private static final String MULTICAST_ADDRESS = "225.1.2.3";
-    private static final int MULTICAST_PORT = 7002;
-    private static final int MAX_PACKET_SIZE = 65000;
+    
     private static int msgId = 0;
     private static Registry registry;
     private static GatewayInterface gateway;
@@ -42,7 +40,9 @@ public class Downloader {
 
     private static void initialize() {
         try {
-            registry = LocateRegistry.getRegistry("localhost");
+            String rmiHost = AppConfig.getProperty("rmi.registry.host");
+            int rmiPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.port"));
+            registry = LocateRegistry.getRegistry(rmiHost, rmiPort);
             gateway = (GatewayInterface) registry.lookup("Gateway");
         } catch (RemoteException | NotBoundException e) {
             handleException("Error initializing RMI registry", e);
@@ -119,7 +119,33 @@ public class Downloader {
 
     private static void sendInfo(PageContent info) throws IOException {
         System.out.println("Sending page content info...");
-        InetAddress multicastAddress = InetAddress.getByName(MULTICAST_ADDRESS);
+    
+        String multicastAddress = AppConfig.getProperty("multicast.address");
+        if (multicastAddress == null) {
+            throw new IllegalStateException("Multicast address is not defined in the configuration.");
+        }
+    
+        int multicastPort;
+        try {
+            String portString = AppConfig.getProperty("multicast.port");
+            if (portString == null) {
+                throw new IllegalStateException("Multicast port is not defined in the configuration.");
+            }
+            multicastPort = Integer.parseInt(portString);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Invalid multicast port: " + e.getMessage(), e);
+        }
+    
+        int maxPacketSize;
+        try {
+            String maxPacketSizeString = AppConfig.getProperty("max.packet.size");
+            if (maxPacketSizeString == null) {
+                throw new IllegalStateException("Max packet size is not defined in the configuration.");
+            }
+            maxPacketSize = Integer.parseInt(maxPacketSizeString);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Invalid max packet size: " + e.getMessage(), e);
+        }
         NetworkInterface networkInterface = NetworkInterface.getNetworkInterfaces().nextElement();
         msgId++;
 
@@ -131,14 +157,14 @@ public class Downloader {
             objectStream.close();
 
             byte[] data = byteStream.toByteArray();
-            int allParts = (data.length + MAX_PACKET_SIZE - 1) / MAX_PACKET_SIZE;
+            int allParts = (data.length + maxPacketSize - 1) / maxPacketSize;
 
             try (MulticastSocket socket = new MulticastSocket()) {
                 socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, networkInterface);
 
                 for (int i = 0; i < allParts; i++) {
-                    int start = i * MAX_PACKET_SIZE;
-                    int end = Math.min(data.length, (i + 1) * MAX_PACKET_SIZE);
+                    int start = i * maxPacketSize;
+                    int end = Math.min(data.length, (i + 1) * maxPacketSize);
                     byte[] section = Arrays.copyOfRange(data, start, end);
 
                     try (ByteArrayOutputStream sectionStream = new ByteArrayOutputStream();
@@ -150,7 +176,7 @@ public class Downloader {
                         dataStream.write(section);
 
                         byte[] packetData = sectionStream.toByteArray();
-                        DatagramPacket packet = new DatagramPacket(packetData, packetData.length, multicastAddress, MULTICAST_PORT);
+                        DatagramPacket packet = new DatagramPacket(packetData, packetData.length, InetAddress.getByName(multicastAddress), multicastPort);
                         socket.send(packet);
                     }
                 }

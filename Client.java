@@ -16,7 +16,11 @@ public class Client {
     private static volatile boolean exitAdminPage = false; // flag to control the admin page loop
     public static void main(String args[]) {
         try {
-            Registry registry = LocateRegistry.getRegistry("localhost");
+            String registryAddress = AppConfig.getProperty("rmi.registry.address");
+            int registryPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.port"));
+
+            Registry registry = LocateRegistry.getRegistry(registryAddress, registryPort);
+            
             GatewayInterface gateway = (GatewayInterface) registry.lookup("Gateway");
 
             try (Scanner scanner = new Scanner(System.in)) {

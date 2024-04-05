@@ -23,9 +23,7 @@ import java.util.zip.GZIPInputStream;
 
 public class Barrel {
 
-    private static final String MULTICAST_ADDRESS = "225.1.2.3";
-    private static final int MT_PORT = 7002;
-
+    
     private MulticastSocket socket;
     private InetAddress gpAddress;
     private NetworkInterface netInterface;
@@ -37,15 +35,16 @@ public class Barrel {
 
     public Barrel() throws IOException {
     try {
-        gpAddress = InetAddress.getByName(MULTICAST_ADDRESS);
-        socket = new MulticastSocket(MT_PORT);
+        String multicastAddress = AppConfig.getProperty("multicast.address");
+        int multicastPort = Integer.parseInt(AppConfig.getProperty("multicast.port"));
+        gpAddress = InetAddress.getByName(multicastAddress);
+        socket = new MulticastSocket(multicastPort);
         netInterface = NetworkInterface.getNetworkInterfaces().nextElement();
 
-        if (gpAddress instanceof InetAddress) {
+       if (gpAddress.isMulticastAddress()) {
             socket.setOption(StandardSocketOptions.IP_MULTICAST_IF, netInterface);
+            socket.joinGroup(new InetSocketAddress(gpAddress, multicastPort), netInterface);
         }
-        
-        socket.joinGroup(new InetSocketAddress(gpAddress, MT_PORT), netInterface);
         
         synchronized (Barrel.class) {
             this.id = UUID.randomUUID();
@@ -133,7 +132,7 @@ public class Barrel {
     }
 
     public static void main(String[] args) {
-       int port = 1100;
+        int port = Integer.parseInt(AppConfig.getProperty("rmi.registry.port"));
 
         try {
             System.out.println("[Barrel] Starting Barrel service...");
