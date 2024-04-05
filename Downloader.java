@@ -33,6 +33,7 @@ public class Downloader {
     private static Registry registry;
     private static GatewayInterface gateway;
     private static final Map<String, Integer> urlInboundReferenceCount = new HashMap<>();
+    
 
     public static void main(String[] args) {
         initialize();

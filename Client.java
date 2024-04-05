@@ -154,6 +154,7 @@ public class Client {
             Set<String> lastActiveBarrels = new HashSet<>();
             Thread userThread = new Thread(() -> {
                 System.out.println("Enter 'q' to exit admin page.");
+                @SuppressWarnings("resource")
                 Scanner scanner = new Scanner(System.in);
                 String input = scanner.nextLine();
                 if ("q".equals(input.trim().toLowerCase())) {
