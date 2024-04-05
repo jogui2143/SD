@@ -12,11 +12,11 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -70,12 +70,15 @@ public class Downloader {
     private static void processUrl(DepthControl dcObj) {
         String url = dcObj.getUrl();
         try {
-            // Check if the URL protocol is HTTP or HTTPS
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 Document doc = Jsoup.connect(url).get();
                 System.out.println("Processing URL: " + url);
-                extractHyperlinks(doc, dcObj);
-                sendPageContentInfo(doc, url);
+                
+                // Extract hyperlinks and process them
+                Set<String> hyperlinks = extractAndProcessHyperlinks(doc, dcObj);
+                
+                // Send page content information
+                sendPageContentInfo(doc, url, hyperlinks);
             } else {
                 System.out.println("Skipping non-HTTP/HTTPS URL: " + url);
                 // Handle non-HTTP/HTTPS URLs differently or log them
@@ -85,21 +88,25 @@ public class Downloader {
         }
     }
 
-    private static void extractHyperlinks(Document doc, DepthControl dcObj) throws RemoteException {
-        List<String> hyperlinks = new ArrayList<>();
+    private static Set<String> extractAndProcessHyperlinks(Document doc, DepthControl dcObj) throws RemoteException {
+        Set<String> uniqueHyperlinks = new HashSet<>();
+        
         Elements links = doc.select("a[href]");
         for (Element link : links) {
             String newUrl = link.attr("abs:href");
-            hyperlinks.add(newUrl);
-            urlInboundReferenceCount.merge(newUrl, 1, Integer::sum);
-            DepthControl newDc = new DepthControl(newUrl, dcObj.getDepth() + 1);
-            gateway.queueUpUrl(newDc);
+            if (uniqueHyperlinks.add(newUrl)) {
+                System.out.println("added"+newUrl);
+               DepthControl newDc = new DepthControl(newUrl, dcObj.getDepth() + 1);
+               gateway.queueUpUrl(newDc);
+                urlInboundReferenceCount.merge(newUrl, 1, Integer::sum);
+                
+            }
         }
+        return uniqueHyperlinks;
     }
 
-    private static void sendPageContentInfo(Document doc, String url) {
+    private static void sendPageContentInfo(Document doc, String url, Set<String> hyperlinks) {
         try {
-            List<String> hyperlinks = extractHyperlinks(doc);
             int numberOfInboundReferences = urlInboundReferenceCount.getOrDefault(url, 0);
             PageContent info = new PageContent(doc.title(), doc.body().text(), url, hyperlinks, numberOfInboundReferences);
             sendInfo(info);
@@ -108,20 +115,7 @@ public class Downloader {
         }
     }
 
-    private static List<String> extractHyperlinks(Document doc) {
-        List<String> hyperlinks = new ArrayList<>();
-        Elements links = doc.select("a[href]");
-        for (Element link : links) {
-            String newUrl = link.attr("abs:href");
-            hyperlinks.add(newUrl);
-        }
-
-        System.out.println("Contents of urlInboundReferenceCount:");
-    for (Map.Entry<String, Integer> entry : urlInboundReferenceCount.entrySet()) {
-        System.out.println(entry.getKey() + ": " + entry.getValue());
-    }
-        return hyperlinks;
-    }
+   
 
     private static void sendInfo(PageContent info) throws IOException {
         System.out.println("Sending page content info...");

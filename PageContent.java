@@ -1,27 +1,43 @@
 import java.io.Serializable;
-import java.util.List;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class PageContent implements Serializable, Comparable<PageContent> {
-
-    private static final int MAX_TEXT_LENGTH = 500;
+    private static final int MAX_CITATION_LENGTH = 500;
 
     private String title;
-    private String text;
+    private Set<String> words;
     private String url;
-    private List<String> references;
+    private Set<String> hyperLinks;
     private int numberOfReferences;
+    private String shortCitation; // Truncated text as a citation
 
-    public PageContent(String title, String text, String url, List<String> references, int numberOfReferences) {
+    public PageContent(String title, String originalText, String url, Set<String> hyperLinkStrings, int numberOfReferences) {
         this.title = title;
-        this.text = text;
         this.url = url;
-        this.references = references;
+        this.hyperLinks = hyperLinkStrings != null ? hyperLinkStrings : Set.of();
         this.numberOfReferences = numberOfReferences;
+        
+        this.words = processText(originalText);
+        this.shortCitation = truncateText(originalText);
+    }
 
-        if (this.references == null) {
-            this.references = List.of();
-            this.numberOfReferences = 0;
+    private Set<String> processText(String text) {
+        if (text == null || text.isEmpty()) {
+            return new HashSet<>();
         }
+        return Arrays.stream(text.split("\\W+"))
+                     .filter(word -> !word.isEmpty())
+                     .collect(Collectors.toSet());
+    }
+
+    private String truncateText(String text) {
+        if (text != null && text.length() > MAX_CITATION_LENGTH) {
+            return text.substring(0, MAX_CITATION_LENGTH) + "...";
+        }
+        return text;
     }
 
     // Getters and Setters
@@ -29,36 +45,28 @@ public class PageContent implements Serializable, Comparable<PageContent> {
         return title;
     }
 
-    public String getText() {
-        return text;
+    public Set<String> getWords() {
+        return words;
     }
 
     public String getUrl() {
         return url;
     }
 
-    public List<String> getReferences() {
-        return references;
+    public Set<String> getHyperLinks() {
+        return hyperLinks;
     }
 
     public int getNumberOfReferences() {
         return numberOfReferences;
     }
 
-    public void setNumberOfReferences(int numberOfReferences) {
-        this.numberOfReferences = numberOfReferences;
-    }
-
-    public String truncateText(String text) {
-        if (text.length() > MAX_TEXT_LENGTH) {
-            return text.substring(0, MAX_TEXT_LENGTH) + "...";
-        }
-        return text;
+    public String getShortCitation() {
+        return shortCitation;
     }
 
     @Override
     public int compareTo(PageContent other) {
-
         return Integer.compare(other.numberOfReferences, this.numberOfReferences);
     }
 
@@ -67,8 +75,9 @@ public class PageContent implements Serializable, Comparable<PageContent> {
         return "PageContent{" +
                 "title='" + title + '\'' +
                 ", url='" + url + '\'' +
-                ", text='" + truncateText(text) + '\'' +
+                ", shortCitation='" + shortCitation + '\'' +
                 ", numberOfReferences=" + numberOfReferences +
+                ", words=" + words +
                 '}';
     }
 }

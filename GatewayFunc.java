@@ -16,6 +16,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     private Map<String, Integer> barrelPorts = new HashMap<>();
     private String currentBarrelKey = "localhost:1099";
     private List<String> barrelRegistryAddresses = new ArrayList<>();
+    private Set<String> queuedUrls = new HashSet<>();
 
     public GatewayFunc() throws RemoteException {
         super();
@@ -71,9 +72,10 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     }
 
     public void queueUpUrl(DepthControl url) throws RemoteException {
-        if (url.getDepth() <= 2 ) { // Check if the URL already exists in the queue
+        if (url.getDepth() <= 2 && !queuedUrls.contains(url.getUrl())) { // Check if the URL already exists in the queued URLs
             url.setTimestamp(System.currentTimeMillis());
             urlQueue.add(url);
+            queuedUrls.add(url.getUrl()); // Add the URL to the set of queued URLs
         }
     }
 

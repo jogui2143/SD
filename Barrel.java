@@ -2,21 +2,13 @@ import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.StandardSocketOptions;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
 import java.rmi.registry.Registry;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -27,9 +19,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
 public class Barrel {
@@ -37,26 +26,14 @@ public class Barrel {
     private static final String MULTICAST_ADDRESS = "225.1.2.3";
     private static final int MT_PORT = 7002;
 
-    
-
     private MulticastSocket socket;
     private InetAddress gpAddress;
     private NetworkInterface netInterface;
 
-    private static final HashMap<String, ConcurrentSkipListSet<PageContent>> pages = new HashMap<>();
+    private final HashMap<String, ConcurrentSkipListSet<PageContent>> pages = new HashMap<>();
+    private final HashMap<String, Set<String>> urlHyperlinkIndex = new HashMap<>();
     private static final Set<UUID> activeBarrels = new HashSet<>();
     private final UUID id;
-
-    private static final String DATA_FILE = "barrel_data1.ser";
-    // Executor service for periodic saving
-    
-
-    private volatile long lastMessageTime = 0;
-    private final long INACTIVITY_THRESHOLD = TimeUnit.MINUTES.toMillis(1); // 1 minute for example
-    
-
-    private ScheduledExecutorService scheduler = null;
-
 
     public Barrel() throws IOException {
     try {
@@ -76,7 +53,7 @@ public class Barrel {
         
         activeBarrels.add(this.id);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> activeBarrels.remove(this.id)));
-        ;
+        
 
     } catch (IOException e) {
         handleException("Error initializing Barrel", e);
@@ -89,87 +66,6 @@ public class Barrel {
 
     public UUID getId() {
         return this.id;
-    }
-
-    private void startPeriodicSave() {
-        scheduler = Executors.newSingleThreadScheduledExecutor();
-        long saveInterval = 5; // interval in seconds
-        scheduler.scheduleAtFixedRate(() -> {
-            if (System.currentTimeMillis() - lastMessageTime > INACTIVITY_THRESHOLD) {
-                System.out.println("[Barrel] No messages received for a while. Stopping periodic save.");
-                stopScheduler();
-            } else {
-                saveDataToFile();
-            }
-        }, saveInterval, saveInterval, TimeUnit.SECONDS);
-        System.out.println("[Barrel] Scheduled periodic data saving every " + saveInterval + " seconds");
-    }
-
-    private void stopScheduler() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdownNow();
-            scheduler = null;
-        }
-    }
-
-    private synchronized void saveDataToFile() {
-        RandomAccessFile raf = null;
-        FileChannel channel = null;
-        FileLock lock = null;
-        try {
-            raf = new RandomAccessFile(DATA_FILE, "rw");
-            channel = raf.getChannel();
-            lock = channel.lock();
-    
-            // Create an output stream that writes to the file channel
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(baos);
-            oos.writeObject(pages);
-            oos.close();
-    
-            // Write the bytes to the file channel
-            channel.write(ByteBuffer.wrap(baos.toByteArray()));
-            System.out.println("[Barrel] Data successfully saved to file");
-        } catch (OverlappingFileLockException e) {
-            System.out.println("[Barrel] Another instance is currently writing to the file. Skipping save.");
-        } catch (IOException e) {
-            handleException("Error saving data to file", e);
-        } finally {
-            try {
-                if (lock != null) {
-                    lock.release();
-                }
-                if (channel != null && channel.isOpen()) {
-                    channel.close();
-                }
-                if (raf != null) {
-                    raf.close();
-                }
-            } catch (IOException e) {
-                handleException("Error releasing file lock or closing channel", e);
-            }
-        }
-    }
-    
-    @SuppressWarnings("unchecked")
-    private synchronized void loadDataFromFile() {
-        File file = new File(DATA_FILE);
-        if (!file.exists()) {
-            System.out.println("[Barrel] Data file not found. A new file will be created.");
-            saveDataToFile(); // Create an empty file to avoid FileNotFoundException in future runs
-            return;
-        }
-    
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
-            Object readObject = ois.readObject();
-            if (readObject instanceof HashMap) {
-                pages.clear();
-                pages.putAll((HashMap<String, ConcurrentSkipListSet<PageContent>>) readObject);
-                System.out.println("[Barrel] Data successfully loaded from file");
-            }
-        } catch (IOException | ClassNotFoundException e) {
-            handleException("Error loading data from file", e);
-        }
     }
 
     public void listenMsg() {
@@ -217,27 +113,27 @@ public class Barrel {
             }
         }
     }
-
     private void storeMsg(PageContent info) {
-
-        lastMessageTime = System.currentTimeMillis();
-        if (scheduler == null || scheduler.isShutdown()) {
-            startPeriodicSave();
-        }
-
-        String[] words = info.getText().split("[^\\p{L}'-^~´`ç]+");
+        Set<String> words = info.getWords(); // Get the set of words from PageContent
         for (String word : words) {
-            if (!word.trim().isEmpty()) {
-                String lowerCaseWord = word.toLowerCase();
-                pages.computeIfAbsent(lowerCaseWord, k -> new ConcurrentSkipListSet<>()).add(info);
-            }
+            String lowerCaseWord = word.toLowerCase();
+            pages.computeIfAbsent(lowerCaseWord, k -> new ConcurrentSkipListSet<>()).add(info);
         }
 
-        
+
+        // Storing hyperlinks for the URL
+        String url = info.getUrl();
+        //System.out.println(url);
+        Set<String> hyperlinks = info.getHyperLinks();
+        synchronized (urlHyperlinkIndex) {
+           
+            //System.out.println(hyperlinks);
+            urlHyperlinkIndex.put(url, hyperlinks);
+        }
     }
 
     public static void main(String[] args) {
-       int port = 1099;
+       int port = 1100;
 
         try {
             System.out.println("[Barrel] Starting Barrel service...");
@@ -250,12 +146,12 @@ public class Barrel {
 
             System.out.println("[Barrel] Instantiating Barrel and BarrelFunc objects");
             Barrel barrel = new Barrel();
-            barrel.loadDataFromFile();
+           
 
-        // Start periodic data saving
-        barrel.startPeriodicSave();
-            BarrelFunc barrelFunc = new BarrelFunc(barrel.getId(), pages);
+            
+            BarrelFunc barrelFunc = new BarrelFunc(barrel.getId(), barrel.pages, barrel.urlHyperlinkIndex);
 
+           
             System.out.println("[Barrel] Getting the Registry reference");
             Registry reg = LocateRegistry.getRegistry("localhost", port);
 

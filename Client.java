@@ -100,7 +100,7 @@ public class Client {
                         PageContent content = iterator.next();
                         System.out.println("Title: " + content.getTitle());
                         System.out.println("URL: " + content.getUrl());
-                        System.out.println("Text: " + content.truncateText(content.getText()));
+                        System.out.println("Text: " + content.getShortCitation());
                         System.out.println("Links: " + content.getNumberOfReferences());
                         System.out.println(); // For better readability
                         iterator.remove();
