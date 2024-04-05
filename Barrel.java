@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
@@ -15,7 +14,6 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
@@ -51,7 +49,13 @@ public class Barrel {
 
     private static final String DATA_FILE = "barrel_data1.ser";
     // Executor service for periodic saving
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    
+
+    private volatile long lastMessageTime = 0;
+    private final long INACTIVITY_THRESHOLD = TimeUnit.MINUTES.toMillis(1); // 1 minute for example
+    
+
+    private ScheduledExecutorService scheduler = null;
 
 
     public Barrel() throws IOException {
@@ -88,10 +92,24 @@ public class Barrel {
     }
 
     private void startPeriodicSave() {
-        long saveInterval = 5; 
-    
-        scheduler.scheduleAtFixedRate(this::saveDataToFile, saveInterval, saveInterval, TimeUnit.SECONDS);
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+        long saveInterval = 5; // interval in seconds
+        scheduler.scheduleAtFixedRate(() -> {
+            if (System.currentTimeMillis() - lastMessageTime > INACTIVITY_THRESHOLD) {
+                System.out.println("[Barrel] No messages received for a while. Stopping periodic save.");
+                stopScheduler();
+            } else {
+                saveDataToFile();
+            }
+        }, saveInterval, saveInterval, TimeUnit.SECONDS);
         System.out.println("[Barrel] Scheduled periodic data saving every " + saveInterval + " seconds");
+    }
+
+    private void stopScheduler() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdownNow();
+            scheduler = null;
+        }
     }
 
     private synchronized void saveDataToFile() {
@@ -201,6 +219,12 @@ public class Barrel {
     }
 
     private void storeMsg(PageContent info) {
+
+        lastMessageTime = System.currentTimeMillis();
+        if (scheduler == null || scheduler.isShutdown()) {
+            startPeriodicSave();
+        }
+
         String[] words = info.getText().split("[^\\p{L}'-^~´`ç]+");
         for (String word : words) {
             if (!word.trim().isEmpty()) {
