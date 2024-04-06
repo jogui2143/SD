@@ -13,10 +13,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -30,7 +29,7 @@ public class Downloader {
     private static int msgId = 0;
     private static Registry registry;
     private static GatewayInterface gateway;
-    private static final Map<String, Integer> urlInboundReferenceCount = new HashMap<>();
+    private static final ConcurrentHashMap<String, Integer> urlInboundReferenceCount = new ConcurrentHashMap<String, Integer>();
     
 
     public static void main(String[] args) {

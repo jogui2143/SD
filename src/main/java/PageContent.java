@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 public class PageContent implements Serializable, Comparable<PageContent> {
     private static final int MAX_CITATION_LENGTH = 500;
+    private static final long serialVersionUID=1l;
 
     private String title;
     private Set<String> words;

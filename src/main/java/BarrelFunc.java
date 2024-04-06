@@ -1,21 +1,22 @@
 import java.rmi.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 
 public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
     private UUID id;
-    private HashMap<String, ConcurrentSkipListSet<PageContent>> index;
-    private HashMap<String, Set<String>> urlHyperlinkIndex; // New index for hyperlinks
+    private ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> index;
+    private ConcurrentHashMap<String, Set<String>> urlHyperlinkIndex; // New index for hyperlinks
     private List<Long> searchTimes = Collections.synchronizedList(new ArrayList<>());
 
-    public BarrelFunc(UUID id, HashMap<String, ConcurrentSkipListSet<PageContent>> index,
-            HashMap<String, Set<String>> urlHyperlinkIndex) throws RemoteException {
+    public BarrelFunc(UUID id, ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> pages,
+            ConcurrentHashMap<String, Set<String>> urlHyperlinkIndex2) throws RemoteException {
         super();
         this.id = id;
-        this.index = index;
-        this.urlHyperlinkIndex = urlHyperlinkIndex; // Initialize the new index
+        this.index = pages;
+        this.urlHyperlinkIndex = urlHyperlinkIndex2; // Initialize the new index
         
     }
 

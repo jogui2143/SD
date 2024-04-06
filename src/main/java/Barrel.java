@@ -2,13 +2,20 @@ import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
+import java.io.File;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.StandardSocketOptions;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.rmi.registry.Registry;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -18,7 +25,12 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 
 public class Barrel {
@@ -28,12 +40,15 @@ public class Barrel {
     private InetAddress gpAddress;
     private NetworkInterface netInterface;
 
-    private final HashMap<String, ConcurrentSkipListSet<PageContent>> pages = new HashMap<>();
-    private final HashMap<String, Set<String>> urlHyperlinkIndex = new HashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>> pages = new ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>>();
+    private final ConcurrentHashMap<String, Set<String>> urlHyperlinkIndex = new ConcurrentHashMap<String, Set<String>>();
     private static final Set<UUID> activeBarrels = new HashSet<>();
     private final UUID id;
+    private final AtomicLong lastStoreTime = new AtomicLong(System.currentTimeMillis());
+    private ScheduledExecutorService scheduler;
 
     public Barrel() throws IOException {
+        loadState();
     try {
         String multicastAddress = AppConfig.getProperty("multicast.address");
         int multicastPort = Integer.parseInt(AppConfig.getProperty("multicast.port"));
@@ -52,6 +67,7 @@ public class Barrel {
         
         activeBarrels.add(this.id);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> activeBarrels.remove(this.id)));
+        startPeriodicSave();
         
 
     } catch (IOException e) {
@@ -66,6 +82,25 @@ public class Barrel {
     public UUID getId() {
         return this.id;
     }
+
+    private void startPeriodicSave() {
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+        Runnable task = () -> {
+            long timeSinceLastStore = System.currentTimeMillis() - lastStoreTime.get();
+            if (timeSinceLastStore <= 30000) {  // 30 seconds inactivity check
+                saveState();
+            } else {
+                // Optional: Log or perform any action when the save is skipped due to inactivity.
+            }
+        };
+        int initialDelay = 0;
+        int periodicDelay = 10;
+
+        scheduler.scheduleAtFixedRate(task, initialDelay, periodicDelay, TimeUnit.SECONDS);
+    }
+
+
+    
 
     public void listenMsg() {
         byte[] buffer = new byte[65536];
@@ -129,6 +164,21 @@ public class Barrel {
             //System.out.println(hyperlinks);
             urlHyperlinkIndex.put(url, hyperlinks);
         }
+
+        lastStoreTime.set(System.currentTimeMillis());
+
+        // Reactivate periodic save if it was deactivated due to inactivity
+        if (scheduler.isShutdown() || scheduler.isTerminated()) {
+            startPeriodicSave();
+        }
+
+    }
+
+
+    public void stopPeriodicSave() {
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+        }
     }
 
     public static void main(String[] args) {
@@ -164,6 +214,62 @@ public class Barrel {
             e.printStackTrace();
         }
     }
+
+
+    private void saveState() {
+        // Use a RandomAccessFile to get a FileChannel
+        try (RandomAccessFile raf = new RandomAccessFile("barrelState.dat", "rw");
+             FileChannel fileChannel = raf.getChannel();
+             ObjectOutputStream oos = new ObjectOutputStream(Channels.newOutputStream(fileChannel))) {
+            
+            // Try acquiring the lock
+            FileLock lock = fileChannel.tryLock();
+            if (lock != null) {
+                try {
+                    oos.writeObject(pages);
+                    oos.writeObject(urlHyperlinkIndex);
+                    System.out.println("[Barrel] State saved successfully.");
+                } finally {
+                    lock.release(); // Make sure to release the lock
+                }
+            } else {
+                System.out.println("[Barrel] Could not acquire the lock. State not saved.");
+            }
+        } catch (IOException | OverlappingFileLockException e) {
+            handleException("Error saving state", e);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void loadState() {
+        File file = new File("barrelState.dat");
+    
+        if (!file.exists() || file.length() == 0) {
+            System.out.println("[Barrel] No existing state to load (file not found or empty).");
+            return; // Skip loading if the file doesn't exist or is empty
+        }
+    
+        try (RandomAccessFile raf = new RandomAccessFile(file, "rw");
+             FileChannel fileChannel = raf.getChannel();
+             ObjectInputStream ois = new ObjectInputStream(Channels.newInputStream(fileChannel))) {
+    
+            FileLock lock = fileChannel.lock(0L, Long.MAX_VALUE, true);
+            if (lock != null) {
+                try {
+                    pages.putAll((ConcurrentHashMap<String, ConcurrentSkipListSet<PageContent>>) ois.readObject());
+                    urlHyperlinkIndex.putAll((ConcurrentHashMap<String, Set<String>>) ois.readObject());
+                    System.out.println("[Barrel] State loaded successfully.");
+                } finally {
+                    lock.release();
+                }
+            } else {
+                System.out.println("[Barrel] Could not acquire the lock. State not loaded.");
+            }
+        } catch (IOException | ClassNotFoundException | OverlappingFileLockException e) {
+            handleException("Error loading state", e);
+        }
+    }
+    
 
 
     private static void handleException(String message, Exception e) {
