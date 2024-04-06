@@ -4,6 +4,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Represents the content of a web page including its title, URL, words, hyperlinks, and references.
+ * This class provides methods to process text, truncate citations, and compare page contents based on the number of references.
+ */
 public class PageContent implements Serializable, Comparable<PageContent> {
     private static final int MAX_CITATION_LENGTH = 500;
     private static final long serialVersionUID=1l;
@@ -15,6 +19,14 @@ public class PageContent implements Serializable, Comparable<PageContent> {
     private int numberOfReferences;
     private String shortCitation; // Truncated text as a citation
 
+    /**
+     * Constructs a PageContent object with the given title, original text, URL, hyperlinks, and number of references.
+     * @param title The title of the web page.
+     * @param originalText The original text content of the web page.
+     * @param url The URL of the web page.
+     * @param hyperLinkStrings The hyperlinks present in the web page.
+     * @param numberOfReferences The number of references to this web page.
+     */
     public PageContent(String title, String originalText, String url, Set<String> hyperLinkStrings, int numberOfReferences) {
         this.title = title;
         this.url = url;
@@ -24,6 +36,8 @@ public class PageContent implements Serializable, Comparable<PageContent> {
         this.words = processText(originalText);
         this.shortCitation = truncateText(originalText);
     }
+
+    // Helper methods
 
     private Set<String> processText(String text) {
         if (text == null || text.isEmpty()) {
@@ -41,7 +55,8 @@ public class PageContent implements Serializable, Comparable<PageContent> {
         return text;
     }
 
-    // Getters and Setters
+    // Getters
+
     public String getTitle() {
         return title;
     }
@@ -66,10 +81,14 @@ public class PageContent implements Serializable, Comparable<PageContent> {
         return shortCitation;
     }
 
+    // Comparable implementation
+
     @Override
     public int compareTo(PageContent other) {
         return Integer.compare(other.numberOfReferences, this.numberOfReferences);
     }
+
+    // toString method
 
     @Override
     public String toString() {

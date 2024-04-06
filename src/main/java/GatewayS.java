@@ -1,8 +1,16 @@
 import java.rmi.registry.*;
 
+/**
+ * Gateway server responsible for initializing and running the gateway component in a distributed web crawling system.
+ * This class creates a registry, binds the GatewayFunc object to it, and starts the gateway on the specified RMI port.
+ */
 public class GatewayS {
 
-    // The main method - the entry point of the application.
+    /**
+     * The main method serves as the entry point of the application.
+     * It initializes and runs the gateway server.
+     * @param args Command-line arguments (not used).
+     */
     public static void main(String[] args) {
         try {
             // Load RMI port from properties file
