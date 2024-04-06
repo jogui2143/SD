@@ -46,8 +46,10 @@ public class Barrel {
     private final UUID id;
     private final AtomicLong lastStoreTime = new AtomicLong(System.currentTimeMillis());
     private ScheduledExecutorService scheduler;
+    private int port;
 
-    public Barrel() throws IOException {
+    public Barrel(int port) throws IOException {
+        this.port = port;
         loadState();
     try {
         String multicastAddress = AppConfig.getProperty("multicast.address");
@@ -194,7 +196,7 @@ public class Barrel {
             }
 
             System.out.println("[Barrel] Instantiating Barrel and BarrelFunc objects");
-            Barrel barrel = new Barrel();
+            Barrel barrel = new Barrel(port);
            
 
             
@@ -217,8 +219,9 @@ public class Barrel {
 
 
     private void saveState() {
+        String filename = "barrelState_" + port + ".dat";
         // Use a RandomAccessFile to get a FileChannel
-        try (RandomAccessFile raf = new RandomAccessFile("barrelState.dat", "rw");
+        try (RandomAccessFile raf = new RandomAccessFile(filename, "rw");
              FileChannel fileChannel = raf.getChannel();
              ObjectOutputStream oos = new ObjectOutputStream(Channels.newOutputStream(fileChannel))) {
             
@@ -242,7 +245,9 @@ public class Barrel {
     
     @SuppressWarnings("unchecked")
     private void loadState() {
-        File file = new File("barrelState.dat");
+
+        String filename = "barrelState_" + port + ".dat";
+        File file = new File(filename);
     
         if (!file.exists() || file.length() == 0) {
             System.out.println("[Barrel] No existing state to load (file not found or empty).");
