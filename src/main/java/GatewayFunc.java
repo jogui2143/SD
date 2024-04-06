@@ -9,6 +9,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.stream.Collectors;
 
 public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface {
+
     private static final int MAX_RETRIES = 3;
     private PriorityBlockingQueue<DepthControl> urlQueue = new PriorityBlockingQueue<>(100, new DepthControlComparator());
     private final ConcurrentHashMap<String, Integer> searchTermFrequencies = new ConcurrentHashMap<>();
@@ -50,7 +51,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     @Override
     public ConcurrentSkipListSet<PageContent> searchInfo(String term) throws RemoteException {
         int attempts = 0;
-        long backoff = 1000;
+        long backoff = 100;
         while (attempts < MAX_RETRIES) {
             String barrelKey = getNextBarrelKey();
             try {
@@ -82,7 +83,7 @@ public class GatewayFunc extends UnicastRemoteObject implements GatewayInterface
     @Override
     public List<String> searchURL(String url) throws RemoteException {
         int attempts = 0;
-        long backoff = 3000;
+        long backoff = 100;
         while (attempts < MAX_RETRIES) {
             String barrelKey = getNextBarrelKey();
             try {

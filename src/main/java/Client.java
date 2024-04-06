@@ -14,6 +14,8 @@ import java.util.concurrent.ConcurrentSkipListSet;
 
 public class Client {
     private static volatile boolean exitAdminPage = false; // flag to control the admin page loop
+    private static Cache<String, ConcurrentSkipListSet<PageContent>> searchCache = new Cache<>(10); // cache with capacity 10
+    private static Cache<String, List<String>> urlCache = new Cache<>(10); // another cache for URLs
     public static void main(String args[]) {
         try {
             String registryAddress = AppConfig.getProperty("rmi.registry.address");
@@ -87,47 +89,58 @@ public class Client {
         try {
             System.out.print("Search term: ");
             String term = scanner.nextLine();
-            int pageNumber = 1;
-
+           
             ConcurrentSkipListSet<PageContent> results = gateway.searchInfo(term);
-
+    
             if (!results.isEmpty()) {
-                System.out.println("Results found for " + term + ":");
-                boolean forward = true;
-
-                while (forward) {
-                    int count = 1;
-                    System.out.println("----------------Page number---------------" + pageNumber);
-                    Iterator<PageContent> iterator = results.iterator();
-
-                    while (iterator.hasNext() && count <= 10) {
-                        PageContent content = iterator.next();
-                        System.out.println("Title: " + content.getTitle());
-                        System.out.println("URL: " + content.getUrl());
-                        System.out.println("Text: " + content.getShortCitation());
-                        System.out.println("Links: " + content.getNumberOfReferences());
-                        System.out.println(); // For better readability
-                        iterator.remove();
-                        count++;
-                    }
-
-                    System.out.println("----------------Page number---------------" + pageNumber);
-                    pageNumber++;
-                    System.out.println("Move forward press 1");
-
-                    int fds = scanner.nextInt();
-                    forward = fds == 1;
-
-                    if (!iterator.hasNext() && forward) {
-                        System.out.println("No more results for " + term);
-                        break;
-                    }
-                }
+                // Update cache with new results
+                searchCache.put(term, new ConcurrentSkipListSet<>(results)); // Clone results to keep original set unmodified
+            } else if (searchCache.containsKey(term)) {
+                // Use cached results if gateway returned empty results
+                System.out.println("Using cached results for " + term);
+                results = searchCache.get(term);
             } else {
                 System.out.println("Could not find results for " + term);
+                return; // Exit the method if no results are found
             }
+    
+            presentResults(results, term, scanner);
         } catch (RemoteException e) {
             handleException("Error searching pages", e);
+        }
+    }
+    
+    private static void presentResults(ConcurrentSkipListSet<PageContent> results, String term, Scanner scanner) {
+        int pageNumber = 1;
+        boolean forward = true;
+    
+        while (forward) {
+            int count = 1;
+            System.out.println("----------------Page number---------------" + pageNumber);
+            Iterator<PageContent> iterator = results.iterator();
+    
+            while (iterator.hasNext() && count <= 10) {
+                PageContent content = iterator.next();
+                System.out.println("Title: " + content.getTitle());
+                System.out.println("URL: " + content.getUrl());
+                System.out.println("Text: " + content.getShortCitation());
+                System.out.println("Links: " + content.getNumberOfReferences());
+                System.out.println(); // For better readability
+                count++;
+            }
+    
+            System.out.println("----------------Page number---------------" + pageNumber);
+            pageNumber++;
+            System.out.println("Move forward press 1");
+    
+            int fds = scanner.nextInt();
+            scanner.nextLine(); // Consume the rest of the line to handle next input correctly
+            forward = fds == 1;
+    
+            if (!iterator.hasNext() && forward) {
+                System.out.println("No more results for " + term);
+                break;
+            }
         }
     }
 
@@ -135,20 +148,33 @@ public class Client {
         try {
             System.out.print("URL: ");
             String url = scanner.nextLine();
+    
             List<String> urls = gateway.searchURL(url);
-
+    
             if (!urls.isEmpty()) {
-                System.out.println("URLs that lead to " + url + ":");
-                for (String u : urls) {
-                    System.out.println(u);
-                }
+                // Barrel returned results, update the cache
+                urlCache.put(url, urls);
+                displayUrls(urls);
             } else {
-                System.out.println("No URLs found that lead to " + url);
+                // Barrel returned empty results, check cache
+                if (urlCache.containsKey(url)) {
+                    System.out.println("Using cached URLs for " + url);
+                    displayUrls(urlCache.get(url));
+                } else {
+                    System.out.println("No URLs found that lead to " + url);
+                }
             }
         } catch (RemoteException e) {
             handleException("Error searching lead URLs", e);
         }
     }
+    
+    private static void displayUrls(List<String> urls) {
+        for (String u : urls) {
+            System.out.println(u);
+        }
+    }
+    
 
     private static void displayAdminPage(GatewayInterface gateway) {
 
