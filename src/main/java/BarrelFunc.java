@@ -62,7 +62,7 @@ public class BarrelFunc extends UnicastRemoteObject implements BarrelInterface {
         // Initialize a list to store sets of PageContent objects corresponding to each
         // word
         List<ConcurrentSkipListSet<PageContent>> listOfSets = new ArrayList<>();
-
+          System.out.println("lalalalalal");
         // Iterate through each word in the search term
         for (String word : words) {
             // If the index contains the word, add its corresponding set to the list

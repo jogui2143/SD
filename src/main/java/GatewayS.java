@@ -14,7 +14,7 @@ public class GatewayS {
     public static void main(String[] args) {
         try {
             // Load RMI port from properties file
-            int rmiPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.port"));
+            int rmiPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.host.port"));
 
             GatewayFunc obj = new GatewayFunc();
             Registry reg = LocateRegistry.createRegistry(rmiPort);

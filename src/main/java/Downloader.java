@@ -66,8 +66,8 @@ public class Downloader {
     private static void initialize() {
         try {
             // Retrieve RMI host and port from application configuration properties
-            String rmiHost = AppConfig.getProperty("rmi.registry.host");
-            int rmiPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.port"));
+            String rmiHost = AppConfig.getProperty("rmi.registry.host.address");
+            int rmiPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.host.port"));
 
             // Get the RMI registry
             registry = LocateRegistry.getRegistry(rmiHost, rmiPort);

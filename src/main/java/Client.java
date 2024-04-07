@@ -32,8 +32,8 @@ public class Client {
     public static void main(String args[]) {
         try {
             // Get the registry address and port from the application properties
-            String registryAddress = AppConfig.getProperty("rmi.registry.address");
-            int registryPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.port"));
+            String registryAddress = AppConfig.getProperty("rmi.registry.host.address");
+            int registryPort = Integer.parseInt(AppConfig.getProperty("rmi.registry.host.port"));
 
             // Connect to the RMI registry
             Registry registry = LocateRegistry.getRegistry(registryAddress, registryPort);

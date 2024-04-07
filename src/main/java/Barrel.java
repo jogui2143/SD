@@ -388,7 +388,7 @@ public class Barrel {
      */
     public static void main(String[] args) {
         // Retrieve the RMI registry port from the application configuration
-        int port = Integer.parseInt(AppConfig.getProperty("rmi.registry.port"));
+        int port = Integer.parseInt(AppConfig.getProperty("barrel.port"));
 
         try {
             // Start the Barrel service
@@ -406,10 +406,11 @@ public class Barrel {
             System.out.println("[Barrel] Instantiating Barrel and BarrelFunc objects");
             Barrel barrel = new Barrel(port);
             BarrelFunc barrelFunc = new BarrelFunc(barrel.getId(), barrel.pages, barrel.urlHyperlinkIndex);
-
+            
+            String hostAddress=AppConfig.getProperty("rmi.registry.host.address");
             // Get the Registry reference
             System.out.println("[Barrel] Getting the Registry reference");
-            Registry reg = LocateRegistry.getRegistry("localhost", port);
+            Registry reg = LocateRegistry.getRegistry(hostAddress, port);
 
             // Bind the BarrelFunc to the registry
             System.out.println("[Barrel] Binding the BarrelFunc to the registry");
