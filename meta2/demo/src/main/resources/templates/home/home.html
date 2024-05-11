@@ -5,8 +5,11 @@
     <title>Home</title>
 </head>
 <body>
-    <h1>Welcome to the Home Page</h1>
-    <p>This is a home page for a google like application</p>
-    <a href="/search">Search</a>
+    <div th:if="${message}" th:text="${message}"> </div>
+    <h1>Welcome to Googol</h1>
+    <p>Frontend is awesome!!</p>
+    <a href="/googol/new">Index a Url</a>
+    <a href="/googol/search">Search</a>
+
 </body>
 </html>
